@@ -1,4 +1,4 @@
-=== Plugin Name ===
+=== VideoWhisper Video Conference Integration ===
 Contributors: VideoWhisper.com
 Tags: video, conference, streaming, chat, rooms, as3, flash, fms, red5, file sharing, audio, video chat, videochat
 Requires at least: 2.7
