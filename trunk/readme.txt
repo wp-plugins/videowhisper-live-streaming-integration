@@ -1,6 +1,6 @@
-=== VideoWhisper Video Conference Integration ===
+=== Plugin Name ===
 Contributors: VideoWhisper.com
-Tags: video, conference, streaming, chat, rooms, as3, flash, fms, red5, file sharing, audio, video chat, videochat
+Tags: video, conference, streaming, chat, rooms, as3, flash, fms, red5, file sharing, audio, video chat, videochat, widget, plugin, media, av, files, page
 Requires at least: 2.7
 Tested up to: 2.7.1
 Stable tag: 1.0.2
@@ -28,6 +28,9 @@ This brings people together instantly and without travel costs. These benefits o
 == Documentation ==
 * Edition Homepage : http://www.videowhisper.com/?p=WordPress+Video+Conference
 * Forum : http://www.videowhisper.com/forum.php?ftid=1&t=Video-Conference-software-videochat-chat
+
+== Demo ==
+* See it live on http://www.videochat-scripts.com/video-conference-plugin-for-wordpress-by-videowhisper/
 
 == Extra ==
 More information, the latest updates, other plugins and non-WordPress versions can be found at http://www.videowhisper.com/ .

@@ -10,7 +10,7 @@ Author URI: http://www.videowhisper.com/
 
 function videoConference()
 {
-?><a href="videowhisper_conference/">Video Conference</a>
+?><a target="_blank" href="/videowhisper_conference/"><IMG SRC="videowhisper_conference/templates/default/i_uvideo.png" border="0" align="absmiddle"> Video Conference</a>
 <?
 }
 

@@ -1,3 +1,7 @@
+<?
+if ($_GET["room"]) $room=$_GET["room"];
+if ($_POST["room"]) $room=$_POST["room"];
+?>
 <files>
 <?
 $dir="uploads";
