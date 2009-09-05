@@ -4,7 +4,7 @@ Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Donate link: http://www.videowhisper.com/?p=Invest
-Tags: video, live, streaming, broadcast, broadcasting, stream, tv, on air, chat, as3, flash, fms, red5, audio, video chat, videochat, widget, plugin, media, av
+Tags: video, live, streaming, broadcast, broadcasting, stream, tv, on air, chat, as3, flash, fms, red5, audio, video chat, videochat, widget, plugin, media, av, page, comments
 Requires at least: 2.7
 Tested up to: 2.7.1
 Stable tag: 1.0.2
