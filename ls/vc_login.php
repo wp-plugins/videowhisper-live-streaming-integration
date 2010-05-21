@@ -1,19 +1,44 @@
 <?php
 include("../../../../wp-config.php");
 
+$options = get_option('VWliveStreamingOptions');
+$rtmp_server = $options['rtmp_server'];
+$rtmp_amf = $options['rtmp_amf'];
+$userName =  $options['userName']; if (!$userName) $userName='user_nicename';
+$canBroadcast = $options['canBroadcast'];
+$broadcastList = $options['broadcastList'];
+	
+global $current_user;
 get_currentuserinfo();
 
 $loggedin=0;
 $msg="";
 
-if ($userdata->user_nicename) $username=urlencode($userdata->user_nicename);
+function inList($item, $data)
+{
+	$list=explode(",",$data);
+	foreach ($list as $listing) if ($item==trim($listing)) return 1;
+	return 0;
+}
+	
+//username
+if ($current_user->$userName) $username=urlencode($current_user->$userName);
 $username=preg_replace("/[^0-9a-zA-Z]/","-",$username);
 
-if ($username) $loggedin=1; else $msg=urlencode("<a href=\"/\">Please login first or register an account if you don't have one! Click here to return to website.</a>");
+switch ($canBroadcast)
+{
+	case "members":
+		if ($username) $loggedin=1;
+		else $msg=urlencode("<a href=\"/\">Please login first or register an account if you don't have one! Click here to return to website.</a>");
+	break;
+	case "list";
+		if ($username)
+			if (inList($username, $broadcastList)) $loggedin=1;
+			else $msg=urlencode("<a href=\"/\">$username, you are not in the broadcasters list.</a>");
+		else $msg=urlencode("<a href=\"/\">Please login first or register an account if you don't have one! Click here to return to website.</a>");
+	break;
+}
 
-$options = get_option('VWliveStreamingOptions');
-$rtmp_server = $options['rtmp_server'];
-$rtmp_amf = 'AMF3';
 
 function baseURL() {
  $pageURL = 'http';
@@ -24,7 +49,6 @@ function baseURL() {
  } else {
   $pageURL .= $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
  }
-
  return substr($pageURL,0,strrpos($pageURL,"/"))."/";
 }
 
