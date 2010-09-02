@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 2.1
+Version: 2.2
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 */
@@ -78,6 +78,8 @@ if (!class_exists("VWliveStreaming"))
 		global $wpdb;
 		$table_name = $wpdb->prefix . "vw_sessions";
 		
+		$root_url = get_bloginfo( "url" ) . "/";
+		
 		//clean recordings
 		$exptime=time()-30;
 		$sql="DELETE FROM `$table_name` WHERE edate < $exptime";
@@ -88,12 +90,11 @@ if (!class_exists("VWliveStreaming"))
 		$items =  $wpdb->get_results("SELECT * FROM `$table_name` where status='1' and type='1'");
 
 		echo "<ul>";
-		if ($items)	foreach ($items as $item) echo "<li><a href='wp-content/plugins/videowhisper-live-streaming-integration/ls/channel.php?n=".urlencode($item->room)."'><B>".$item->room."</B>".($item->message?": ".$item->message:"") ."</a></li>";
+		if ($items)	foreach ($items as $item) echo "<li><a href='" . $root_url ."wp-content/plugins/videowhisper-live-streaming-integration/ls/channel.php?n=".urlencode($item->room)."'><B>".$item->room."</B>".($item->message?": ".$item->message:"") ."</a></li>";
 		else echo "<li>No broadcasters online.</li>";
 		echo "</ul>";
 
-
-	?><a href="wp-content/plugins/videowhisper-live-streaming-integration/ls/"><img src="wp-content/plugins/videowhisper-live-streaming-integration/ls/templates/live/i_webcam.png" align="absmiddle" border="0"> Video Broadcast</a>
+	?><a href="<?php echo $root_url; ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/"><img src="<?php echo $root_url; ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/templates/live/i_webcam.png" align="absmiddle" border="0"> Video Broadcast</a>
 	<?
 	}
 
@@ -210,16 +211,22 @@ if (!class_exists("VWliveStreaming"))
 } 
 
 //instantiate
-
-      if (class_exists("VWliveStreaming")) {
-          $liveStreaming = new VWliveStreaming();
-      }
+if (class_exists("VWliveStreaming")) {
+        $liveStreaming = new VWliveStreaming();
+}
 
 //Actions and Filters   
 if (isset($liveStreaming)) {
 add_action("plugins_loaded", array(&$liveStreaming, 'init'));
 add_action('admin_menu', array(&$liveStreaming, 'menu'));
 
+/* Only load code that needs BuddyPress to run once BP is loaded and initialized. */
+function liveStreamingBP_init() 
+{
+    require( dirname( __FILE__ ) . '/bp.php' );
+}
+
+add_action( 'bp_init', 'liveStreamingBP_init' );
 }
 
 

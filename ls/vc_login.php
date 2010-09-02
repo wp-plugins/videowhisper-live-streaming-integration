@@ -21,6 +21,7 @@ function inList($item, $data)
 	return 0;
 }
 	
+
 //username
 if ($current_user->$userName) $username=urlencode($current_user->$userName);
 $username=preg_replace("/[^0-9a-zA-Z]/","-",$username);
@@ -39,6 +40,15 @@ switch ($canBroadcast)
 	break;
 }
 
+//broadcaster
+$userlabel="";
+$room_name=$_GET['room_name'];
+if ($room_name&&$room_name!=$username) 
+{
+$userlabel=$username;
+$username=$room_name;
+$room=$room_name;
+}
 
 function baseURL() {
  $pageURL = 'http';
@@ -65,4 +75,4 @@ $embedvcode =<<<EMBEDEND2
 <object width="320" height="240"><param name="movie" value="$swfurl2" /><param name="base" value="$base" /><param name="scale" value="exactfit"/><param name="allowFullScreen" value="true" /><param name="allowscriptaccess" value="always" /><embed src="$swfurl2" base="$base" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" width="320" height="240" scale="exactfit"></embed></object>
 EMBEDEND2;
 
-?>server=<?=$rtmp_server?>&serverAMF=<?=$rtmp_amf?>&room=<?=$username?>&welcome=Welcome!&username=<?=$username?>&userType=3&webserver=&msg=<?=$msg?>&loggedin=<?=$loggedin?>&linkcode=<?=urlencode($linkcode)?>&embedcode=<?=urlencode($embedcode)?>&embedvcode=<?=urlencode($embedvcode)?>&imagecode=<?=urlencode($imagecode)?>&room_limit=&showTimer=1&showCredit=1&disconnectOnTimeout=1&camWidth=320&camHeight=240&camFPS=15&micRate=11&camBandwidth=40960&bufferLive=2&bufferFull=16&showCamSettings=1&advancedCamSettings=1&camMaxBandwidth=81920&configureSource=1&generateSnapshots=1&snapshotsTime=60000&onlyVideo=<?=$options['onlyVideo']?>&noEmbeds=<?=$options['noEmbeds']?>&loadstatus=1
+?>server=<?=$rtmp_server?>&serverAMF=<?=$rtmp_amf?>&room=<?=$username?>&welcome=Welcome!&username=<?=$username?>&userlabel=<?=$userlabel?>&userType=3&webserver=&msg=<?=$msg?>&loggedin=<?=$loggedin?>&linkcode=<?=urlencode($linkcode)?>&embedcode=<?=urlencode($embedcode)?>&embedvcode=<?=urlencode($embedvcode)?>&imagecode=<?=urlencode($imagecode)?>&room_limit=&showTimer=1&showCredit=1&disconnectOnTimeout=1&camWidth=320&camHeight=240&camFPS=15&micRate=11&camBandwidth=40960&bufferLive=2&bufferFull=16&showCamSettings=1&advancedCamSettings=1&camMaxBandwidth=81920&configureSource=1&generateSnapshots=1&snapshotsTime=60000&onlyVideo=<?=$options['onlyVideo']?>&noEmbeds=<?=$options['noEmbeds']?>&loadstatus=1
