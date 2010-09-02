@@ -52,7 +52,7 @@ More information, the latest updates, other plugins and non-WordPress editions c
 
 == Changelog ==
 = 2.2 =
-*BuddyPress integration: If BuddyPress is installed this will add a Live Stream tab to the group where users can watch live video and chat realtime. Admins can broadcast anytime from Admin > Live Streaming.
+* BuddyPress integration: If BuddyPress is installed this will add a Live Stream tab to the group where users can watch live video and chat realtime. Admins can broadcast anytime from Admin > Live Streaming.
 
 = 2.1 =
 * Permissions for broadcasters (members, list) and watchers (all, members, list).
