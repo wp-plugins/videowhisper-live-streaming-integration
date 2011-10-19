@@ -1,4 +1,4 @@
-<?
+<?php
 /*
 POST Variables:
 u=Username

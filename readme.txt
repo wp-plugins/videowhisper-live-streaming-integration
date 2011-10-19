@@ -1,21 +1,22 @@
 === VideoWhisper Live Streaming Integration ===
-Contributors: VideoWhisper.com
+Contributors: videowhisper, VideoWhisper.com
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com
 Plugin Name: VideoWhisper Live Streaming Broadcast
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Donate link: http://www.videowhisper.com/?p=Invest
-Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, on air, chat, flash, fms, red5, wowza, audio, video chat, videochat, widget, plugin, media, av, livestream, station, channel, sidebar, webcam, cam, group, groups, tab
+Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, on air, chat, flash, fms, red5, wowza, audio, video chat, videochat, widget, plugin, media, av, livestream, station, channel, sidebar, webcam, cam, group, groups, tab, P2P
 Requires at least: 2.7
-Tested up to: 3.0.1
+Tested up to: 3.2.1
 Stable tag: trunk
 
 The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages. Also integrates with BuddyPress groups if available.
 
 == Description ==
-Video Whisper Live Streaming software includes live video broadcast, embeddable live video watch and chat, embeddable live video streaming.  Use this software to add features like on justin tv, ustream tv, mogulus, stickam, blog tv, live yahoo or their clones.  
+Video Whisper Live Streaming software includes live video broadcast, embeddable live video watch and chat, embeddable live video streaming. Latest version includes P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage.
+Use this software to add features like on justin tv, ustream tv, mogulus, livestream, stickam, blog tv, live yahoo or their clones and alternatives.  
 
-This plugin uses the WordPress username to login existing users. If the user is not logged into WordPress a warning message is shown and the visitor can click that to get back to the main WordPress website for registration/login. 
+This plugin uses the WordPress username to login existing users. If the user is not logged into WordPress a warning message is shown and the visitor can click that to get back to the main WordPress website for registration/login. Administrators can restrict access to broadcasting and watching to certain users.
 
 Also includes a plugin that provides a linking widget. The widget also displays online broadcasters and their show names.
 
@@ -23,7 +24,10 @@ There is a settings page with multiple parameters and permissions (what users ca
 
 BuddyPress integration: If BuddyPress is installed this will add a Live Stream tab to the group where users can watch live video and chat realtime. Admins can broadcast anytime from Admin > Live Streaming.
 
+Special requirements: This plugin has requirements beyond regular WordPress hosting specifications: a RTMP host is needed for persistent connections to manage live interactions and streaming. More details about this, including solutions are provided on the Installation section pages.
+
 == Installation ==
+* See latest version instructions on plugin homepage: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 * Before installing this make sure all hosting requirements are met: http://www.videowhisper.com/?p=Requirements
 * Install the RTMP application using these instructions: http://www.videowhisper.com/?p=RTMP+Applications
 * Copy this plugin folder to your wordpress installation in your plugins folder. You should obtain wp-content/plugins/videowhisper-live-streaming-integration .

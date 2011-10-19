@@ -1,5 +1,5 @@
 <?php
-include("../../../../wp-config.php");
+include_once("../../../../wp-config.php");
 
 $options = get_option('VWliveStreamingOptions');
 $rtmp_server = $options['rtmp_server'];
@@ -7,6 +7,15 @@ $rtmp_amf = $options['rtmp_amf'];
 $userName =  $options['userName']; if (!$userName) $userName='user_nicename';
 $canBroadcast = $options['canBroadcast'];
 $broadcastList = $options['broadcastList'];
+
+$tokenKey = $options['tokenKey'];
+$serverRTMFP = $options['serverRTMFP'];
+$p2pGroup = $options['p2pGroup'];
+$supportRTMP = $options['supportRTMP'];
+$supportP2P = $options['supportP2P'];
+$alwaystRTMP = $options['alwaystRTMP'];
+$alwaystP2P = $options['alwaystP2P'];
+$disableBandwidthDetection = $options['disableBandwidthDetection'];
 	
 global $current_user;
 get_currentuserinfo();
@@ -75,4 +84,4 @@ $embedvcode =<<<EMBEDEND2
 <object width="320" height="240"><param name="movie" value="$swfurl2" /><param name="base" value="$base" /><param name="scale" value="exactfit"/><param name="allowFullScreen" value="true" /><param name="allowscriptaccess" value="always" /><embed src="$swfurl2" base="$base" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" width="320" height="240" scale="exactfit"></embed></object>
 EMBEDEND2;
 
-?>server=<?=$rtmp_server?>&serverAMF=<?=$rtmp_amf?>&room=<?=$username?>&welcome=Welcome!&username=<?=$username?>&userlabel=<?=$userlabel?>&userType=3&webserver=&msg=<?=$msg?>&loggedin=<?=$loggedin?>&linkcode=<?=urlencode($linkcode)?>&embedcode=<?=urlencode($embedcode)?>&embedvcode=<?=urlencode($embedvcode)?>&imagecode=<?=urlencode($imagecode)?>&room_limit=&showTimer=1&showCredit=1&disconnectOnTimeout=1&camWidth=320&camHeight=240&camFPS=15&micRate=11&camBandwidth=40960&bufferLive=2&bufferFull=16&showCamSettings=1&advancedCamSettings=1&camMaxBandwidth=81920&configureSource=1&generateSnapshots=1&snapshotsTime=60000&onlyVideo=<?=$options['onlyVideo']?>&noEmbeds=<?=$options['noEmbeds']?>&loadstatus=1
+?>server=<?=$rtmp_server?>&serverAMF=<?=$rtmp_amf?>&tokenKey=<?=$tokenKey?>&serverRTMFP=<?=urlencode($serverRTMFP)?>&p2pGroup=<?=$p2pGroup?>&supportRTMP=<?=$supportRTMP?>&supportP2P=<?=$supportP2P?>&alwaysRTMP=<?=$alwaysRTMP?>&alwaysP2P=<?=$alwaysP2P?>&disableBandwidthDetection=<?=$disableBandwidthDetection?>&room=<?=$username?>&welcome=Welcome!&username=<?=$username?>&userlabel=<?=$userlabel?>&userType=3&webserver=&msg=<?=$msg?>&loggedin=<?=$loggedin?>&linkcode=<?=urlencode($linkcode)?>&embedcode=<?=urlencode($embedcode)?>&embedvcode=<?=urlencode($embedvcode)?>&imagecode=<?=urlencode($imagecode)?>&room_limit=&showTimer=1&showCredit=1&disconnectOnTimeout=1&camWidth=320&camHeight=240&camFPS=15&micRate=11&camBandwidth=40960&bufferLive=0.5&bufferFull=8&showCamSettings=1&advancedCamSettings=1&camMaxBandwidth=81920&configureSource=1&generateSnapshots=1&snapshotsTime=60000&onlyVideo=<?=$options['onlyVideo']?>&noEmbeds=<?=$options['noEmbeds']?>&loadstatus=1

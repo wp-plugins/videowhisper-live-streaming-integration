@@ -3,9 +3,10 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 2.2
+Version: 4.05
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
+Contributors: videowhisper, VideoWhisper.com
 */
 
 
@@ -96,6 +97,11 @@ if (!class_exists("VWliveStreaming"))
 
 	?><a href="<?php echo $root_url; ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/"><img src="<?php echo $root_url; ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/templates/live/i_webcam.png" align="absmiddle" border="0"> Video Broadcast</a>
 	<?
+	
+		$options = get_option('VWliveStreamingOptions');
+		$state = 'block' ;
+		if (!$options['videowhisper']) $state = 'none';	
+		echo '<div id="VideoWhisper" style="display: ' . $state . ';"><p>Powered by VideoWhisper <a href="http://www.videowhisper.com/?p=WordPress+Live+Streaming">Live Video Streaming Software</a>.</p></div>';
 	}
 
 	function widget($args) {
@@ -121,7 +127,17 @@ if (!class_exists("VWliveStreaming"))
 				'canWatch' => 'all',
 				'watchList' => '',
 				'onlyVideo' => '0',
-				'noEmbeds' => '0'
+				'noEmbeds' => '0',
+				
+				'tokenKey' => 'VideoWhisper',
+				'serverRTMFP' => 'rtmfp://stratus.adobe.com/f1533cc06e4de4b56399b10d-1a624022ff71/',
+				'p2pGroup' => 'VideoWhisper',
+				'supportRTMP' => '1',
+				'supportP2P' => '1',
+				'alwaysRTMP' => '0',
+				'alwaysP2P' => '0',
+				'disableBandwidthDetection' => '0',
+				'videowhisper' => 0
 				);
 			
 				$options = get_option('VWliveStreamingOptions');
@@ -133,7 +149,8 @@ if (!class_exists("VWliveStreaming"))
 				return $adminOptions;
 	}
 	
-	function options() {
+	function options() 
+	{
 		$options = VWliveStreaming::getAdminOptions();
 
 		if (isset($_POST['updateSettings'])) 
@@ -146,6 +163,17 @@ if (!class_exists("VWliveStreaming"))
 				if (isset($_POST['broadcastList'])) $options['broadcastList'] = $_POST['broadcastList'];
 				if (isset($_POST['canWatch'])) $options['canWatch'] = $_POST['canWatch'];
 				if (isset($_POST['watchList'])) $options['watchList'] = $_POST['watchList'];
+				
+				if (isset($_POST['tokenKey'])) $options['tokenKey'] = $_POST['tokenKey'];
+				if (isset($_POST['serverRTMFP'])) $options['serverRTMFP'] = $_POST['serverRTMFP'];
+				if (isset($_POST['p2pGroup'])) $options['p2pGroup'] = $_POST['p2pGroup'];
+				if (isset($_POST['supportRTMP'])) $options['supportRTMP'] = $_POST['supportRTMP'];
+				if (isset($_POST['supportP2P'])) $options['supportP2P'] = $_POST['supportP2P'];
+				if (isset($_POST['alwaystRTMP'])) $options['alwaystRTMP'] = $_POST['alwaystRTMP'];
+				if (isset($_POST['alwaystP2P'])) $options['alwaystP2P'] = $_POST['alwaystP2P'];
+				if (isset($_POST['disableBandwidthDetection'])) $options['disableBandwidthDetection'] = $_POST['disableBandwidthDetection'];
+				if (isset($_POST['videowhisper'])) $options['videowhisper'] = $_POST['videowhisper'];
+
 				update_option('VWliveStreamingOptions', $options);
 		}
 			
@@ -160,12 +188,51 @@ if (!class_exists("VWliveStreaming"))
 <h3>General Settings</h3>
 <h5>RTMP Address</h5>
 <p>To run this, make sure your hosting environment meets all <a href="http://www.videowhisper.com/?p=Requirements" target="_blank">requirements</a>.  If you don't have a videowhisper rtmp address yet (from a managed rtmp host), go to <a href="http://www.videowhisper.com/?p=RTMP+Applications" target="_blank">RTMP Application   Setup</a> for  installation details.</p>
-<input name="rtmp_server" type="text" id="rtmp_server" size="64" maxlength="256" value="<?=$options['rtmp_server']?>"/>
+<input name="rtmp_server" type="text" id="rtmp_server" size="80" maxlength="256" value="<?=$options['rtmp_server']?>"/>
 <h5>Username</h5>
 <select name="userName" id="userName">
   <option value="display_name" <?=$options['userName']=='display_name'?"selected":""?>>Display Name</option>
   <option value="user_login" <?=$options['userName']=='user_login'?"selected":""?>>Login (Username)</option>
   <option value="user_nicename" <?=$options['userName']=='user_nicename'?"selected":""?>>Nicename</option>  
+</select>
+<h5>Disable Bandwidth Detection</h5>
+<p>Required on some rtmp servers that don't support bandwidth detection and return a Connection.Call.Fail error.</p>
+<select name="disableBandwidthDetection" id="disableBandwidthDetection">
+  <option value="0" <?=$options['disableBandwidthDetection']?"":"selected"?>>No</option>
+  <option value="1" <?=$options['disableBandwidthDetection']?"selected":""?>>Yes</option>
+</select>
+<h5>Show VideoWhisper Powered by</h5>
+<select name="videowhisper" id="videowhisper">
+  <option value="0" <?=$options['videowhisper']?"":"selected"?>>No</option>
+  <option value="1" <?=$options['videowhisper']?"selected":""?>>Yes</option>
+</select>
+<h5>Token Key</h5>
+<input name="tokenKey" type="text" id="tokenKey" size="32" maxlength="64" value="<?=$options['tokenKey']?>"/>
+<h5>RTMFP Address</h5>
+<p> Get your own independent RTMFP address by registering for a free <a href="https://www.adobe.com/cfusion/entitlement/index.cfm?e=cirrus" target="_blank">Adobe Cirrus developer key</a>. This is required for P2P support.</p>
+<input name="serverRTMFP" type="text" id="serverRTMFP" size="80" maxlength="256" value="<?=$options['serverRTMFP']?>"/>
+<h5>P2P Group</h5>
+<input name="p2pGroup" type="text" id="p2pGroup" size="32" maxlength="64" value="<?=$options['p2pGroup']?>"/>
+<h5>Support RTMP Streaming</h5>
+<select name="supportRTMP" id="supportRTMP">
+  <option value="0" <?=$options['supportRTMP']?"":"selected"?>>No</option>
+  <option value="1" <?=$options['supportRTMP']?"selected":""?>>Yes</option>
+</select>
+<h5>Always do RTMP Streaming</h5>
+<p>Enable this if you want all streams to be published to server, no matter if there are registered subscribers or not (in example if you're using server side video archiving and need all streams published for recording).</p>
+<select name="alwaystRTMP" id="alwaystRTMP">
+  <option value="0" <?=$options['alwaystRTMP']?"":"selected"?>>No</option>
+  <option value="1" <?=$options['alwaystRTMP']?"selected":""?>>Yes</option>
+</select>
+<h5>Support P2P Streaming</h5>
+<select name="supportP2P" id="supportP2P">
+  <option value="0" <?=$options['supportP2P']?"":"selected"?>>No</option>
+  <option value="1" <?=$options['supportP2P']?"selected":""?>>Yes</option>
+</select>
+<h5>Always do P2P Streaming</h5>
+<select name="alwaysP2P" id="alwaysP2P">
+  <option value="0" <?=$options['alwaysP2P']?"":"selected"?>>No</option>
+  <option value="1" <?=$options['alwaysP2P']?"selected":""?>>Yes</option>
 </select>
 
 <h3>Video Broadcaster</h3>

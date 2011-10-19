@@ -7,7 +7,16 @@ $rtmp_amf = $options['rtmp_amf'];
 $userName =  $options['userName']; if (!$userName) $userName='user_nicename';
 $canWatch = $options['canWatch'];
 $watchList = $options['watchList'];
-	
+
+$tokenKey = $options['tokenKey'];
+$serverRTMFP = $options['serverRTMFP'];
+$p2pGroup = $options['p2pGroup'];
+$supportRTMP = $options['supportRTMP'];
+$supportP2P = $options['supportP2P'];
+$alwaystRTMP = $options['alwaystRTMP'];
+$alwaystP2P = $options['alwaystP2P'];
+$disableBandwidthDetection = $options['disableBandwidthDetection'];
+
 global $current_user;
 get_currentuserinfo();
 
@@ -50,8 +59,8 @@ switch ($canWatch)
 
 $roomName=$_GET['room_name'];
 if ($username==$roomName) $username.="_".rand(10,99);//allow viewing own room - session names must be different
-
+$debug = "$roomName:$username";
 		
 $userType=0;
 
-?>server=<?=$rtmp_server?>&serverAMF=<?=$rtmp_amf?>&bufferLive=0.5&bufferFull=16&welcome=Welcome!&username=<?=$username?>&userType=<?=$userType?>&msg=<?=$msg?>&loggedin=<?=$loggedin?>&visitor=<?=$visitor?>&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&loadstatus=1
+?>server=<?=$rtmp_server?>&serverAMF=<?=$rtmp_amf?>&tokenKey=<?=$tokenKey?>&serverRTMFP=<?=urlencode($serverRTMFP)?>&p2pGroup=<?=$p2pGroup?>&supportRTMP=<?=$supportRTMP?>&supportP2P=<?=$supportP2P?>&alwaysRTMP=<?=$alwaysRTMP?>&alwaysP2P=<?=$alwaysP2P?>&disableBandwidthDetection=<?=$disableBandwidthDetection?>&bufferLive=0.5&bufferFull=8&welcome=Welcome!&username=<?=$username?>&userType=<?=$userType?>&msg=<?=$msg?>&loggedin=<?=$loggedin?>&visitor=<?=$visitor?>&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&loadstatus=1&debug=<?=$debug?>

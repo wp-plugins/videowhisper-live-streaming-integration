@@ -9,6 +9,15 @@ $rtmp_amf = $options['rtmp_amf'];
 $userName =  $options['userName']; if (!$userName) $userName='user_nicename';
 $canWatch = $options['canWatch'];
 $watchList = $options['watchList'];
+
+$tokenKey = $options['tokenKey'];
+$serverRTMFP = $options['serverRTMFP'];
+$p2pGroup = $options['p2pGroup'];
+$supportRTMP = $options['supportRTMP'];
+$supportP2P = $options['supportP2P'];
+$alwaystRTMP = $options['alwaystRTMP'];
+$alwaystP2P = $options['alwaystP2P'];
+$disableBandwidthDetection = $options['disableBandwidthDetection'];
 	
 global $current_user;
 get_currentuserinfo();
@@ -66,4 +75,4 @@ layoutEND;
 
 if (!$welcome) $welcome="Welcome on <B>".$_GET['room_name']."</B> live streaming channel!";
 
-?>server=<?=$rtmp_server?>&serverAMF=<?=$rtmp_amf?>&bufferLive=0.5&bufferFull=16&welcome=<?=urlencode($welcome)?>&username=<?=$username?>&userType=<?=$userType?>&msg=<?=$msg?>&loggedin=<?=$loggedin?>&visitor=<?=$visitor?>&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&disableVideo=0&disableChat=0&disableUsers=0&layoutCode=<?=urlencode($layoutCode)?>&fillWindow=0&filterRegex=<?=$filterRegex?>&filterReplace=<?=$filterReplace?>&loadstatus=1
+?>server=<?=$rtmp_server?>&serverAMF=<?=$rtmp_amf?>&tokenKey=<?=$tokenKey?>&serverRTMFP=<?=urlencode($serverRTMFP)?>&p2pGroup=<?=$p2pGroup?>&supportRTMP=<?=$supportRTMP?>&supportP2P=<?=$supportP2P?>&alwaysRTMP=<?=$alwaysRTMP?>&alwaysP2P=<?=$alwaysP2P?>&disableBandwidthDetection=<?=$disableBandwidthDetection?>&bufferLive=0.5&bufferFull=8&welcome=<?=urlencode($welcome)?>&username=<?=$username?>&userType=<?=$userType?>&msg=<?=$msg?>&loggedin=<?=$loggedin?>&visitor=<?=$visitor?>&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&disableVideo=0&disableChat=0&disableUsers=0&layoutCode=<?=urlencode($layoutCode)?>&fillWindow=0&filterRegex=<?=$filterRegex?>&filterReplace=<?=$filterReplace?>&loadstatus=1

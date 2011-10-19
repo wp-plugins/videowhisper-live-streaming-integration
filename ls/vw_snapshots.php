@@ -2,13 +2,15 @@
 if (isset($GLOBALS["HTTP_RAW_POST_DATA"]))
 {
   $stream=$_GET['name'];
-  //do not allow uploads to other folders
-  if ( strstr($stream,"/") || strstr($stream,"..") ) exit;
 
-	// get bytearray
-	$jpg = $GLOBALS["HTTP_RAW_POST_DATA"];
+  include_once("incsan.php");
+  sanV($stream);
+  if (!$stream) exit;
+  
+  // get bytearray
+  $jpg = $GLOBALS["HTTP_RAW_POST_DATA"];
 
-	// save file
+  // save file
   $fp=fopen("snapshots/$stream.jpg","w");
   if ($fp)
   {
