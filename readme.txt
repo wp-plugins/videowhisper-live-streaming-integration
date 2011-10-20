@@ -55,6 +55,12 @@ If your users want to broadcast their screen (when playing a game, using a progr
 More information, the latest updates, other plugins and non-WordPress editions can be found at http://www.videowhisper.com/ .
 
 == Changelog ==
+
+= 4.05= 
+* Integrated latest application version (with broadcaster application v4.05) that include P2P. 
+* Added more settings to control P2P / RTMP streaming, secure token if enabled, bandwidth detection.
+* Fixed some possible security vulnerabilites for hosts with magic_quotes Off.
+
 = 2.2 =
 * BuddyPress integration: If BuddyPress is installed this will add a Live Stream tab to the group where users can watch live video and chat realtime. Admins can broadcast anytime from Admin > Live Streaming.
 
