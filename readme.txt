@@ -13,8 +13,13 @@ Stable tag: trunk
 The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages. Also integrates with BuddyPress groups if available.
 
 == Description ==
-Video Whisper Live Streaming software includes live video broadcast, embeddable live video watch and chat, embeddable live video streaming. Latest version includes P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage.
-Use this software to add features like on justin tv, ustream tv, mogulus, livestream, stickam, blog tv, live yahoo or their clones and alternatives.  
+VideoWhisper Live Streaming software integrates web applications to:
+* broadcast video live
+* embed live video streaming and chat
+* embed live video streaming only
+Latest version includes P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage.
+ 
+Use this software for adding to your site, features like on justin tv, ustream tv, mogulus, livestream, stickam, blog tv, live yahoo or their clones and alternatives.  
 
 This plugin uses the WordPress username to login existing users. If the user is not logged into WordPress a warning message is shown and the visitor can click that to get back to the main WordPress website for registration/login. Administrators can restrict access to broadcasting and watching to certain users.
 
@@ -49,15 +54,15 @@ If your users want to broadcast their screen (when playing a game, using a progr
 
 == Demo ==
 * See BuddyPress integration live on http://livon.tv/
-* See it live on http://www.videochat-scripts.com/live-streaming-on-wordpress-by-videowhisper/
+* See plan WordPress integration on http://www.videochat-scripts.com/live-streaming-on-wordpress-by-videowhisper/
 
 == Extra ==
 More information, the latest updates, other plugins and non-WordPress editions can be found at http://www.videowhisper.com/ .
 
 == Changelog ==
 
-= 4.05 = 
-* Integrated latest application version (with broadcaster application v4.05) that include P2P. 
+= 4.05 =
+* Integrated latest application versions (with broadcaster application v4.05) that include P2P. 
 * Added more settings to control P2P / RTMP streaming, secure token if enabled, bandwidth detection.
 * Fixed some possible security vulnerabilites for hosts with magic_quotes Off.
 
