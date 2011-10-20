@@ -56,7 +56,7 @@ More information, the latest updates, other plugins and non-WordPress editions c
 
 == Changelog ==
 
-= 4.05= 
+= 4.05 = 
 * Integrated latest application version (with broadcaster application v4.05) that include P2P. 
 * Added more settings to control P2P / RTMP streaming, secure token if enabled, bandwidth detection.
 * Fixed some possible security vulnerabilites for hosts with magic_quotes Off.
