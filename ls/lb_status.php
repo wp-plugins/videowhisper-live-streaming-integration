@@ -12,7 +12,8 @@ cam, mic = 0 none, 1 disabled, 2 enabled
 */
 
 
-
+include("../../../../wp-config.php");
+	
 include("inc.php");
 include("incsan.php");
 
@@ -37,8 +38,6 @@ include("incsan.php");
 	//exit if no valid session name or room name
 	if (!$s) exit;
 	if (!$r) exit;
-
-	include("../../../../wp-config.php");
 
 	//only registered users can broadcast
 	if (!is_user_logged_in()) exit;

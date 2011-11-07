@@ -3,12 +3,11 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.05
+Version: 4.07
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
 */
-
 
 if (!class_exists("VWliveStreaming")) 
 {
@@ -34,10 +33,11 @@ if (!class_exists("VWliveStreaming"))
 	  wp_register_sidebar_widget('liveStreamingWidget','VideoWhisper Streaming', array('VWliveStreaming', 'widget') );
 	  
 	    //check db
-	  	$vw_db_version = "1.0";
+	  	$vw_db_version = "1.1";
 
 		global $wpdb;
 		$table_name = $wpdb->prefix . "vw_sessions";
+		$table_name2 = $wpdb->prefix . "vw_lwsessions";
 			
 		$installed_ver = get_option( "vw_db_version" );
 
@@ -60,7 +60,25 @@ if (!class_exists("VWliveStreaming"))
 		  KEY `status` (`status`),
 		  KEY `type` (`type`),
 		  KEY `room` (`room`)
-		) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Video Whisper: Sessions - 2009@videowhisper.com' AUTO_INCREMENT=1 ;";
+		) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Video Whisper: Sessions - 2009@videowhisper.com' AUTO_INCREMENT=1 ;
+		
+		DROP TABLE IF EXISTS `$table_name2`;
+		CREATE TABLE `$table_name2` (
+		  `id` int(11) NOT NULL auto_increment,
+		  `session` varchar(64) NOT NULL,
+		  `username` varchar(64) NOT NULL,
+		  `room` varchar(64) NOT NULL,
+		  `message` text NOT NULL,
+		  `sdate` int(11) NOT NULL,
+		  `edate` int(11) NOT NULL,
+		  `status` tinyint(4) NOT NULL,
+		  `type` tinyint(4) NOT NULL,
+		  PRIMARY KEY  (`id`),
+		  KEY `status` (`status`),
+		  KEY `type` (`type`),
+		  KEY `room` (`room`)
+		) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Video Whisper: Sessions - 2009@videowhisper.com' AUTO_INCREMENT=1 ;
+		";
 
 			require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
 			dbDelta($sql);
@@ -78,6 +96,7 @@ if (!class_exists("VWliveStreaming"))
 	{
 		global $wpdb;
 		$table_name = $wpdb->prefix . "vw_sessions";
+		$table_name2 = $wpdb->prefix . "vw_lwsessions";
 		
 		$root_url = get_bloginfo( "url" ) . "/";
 		
@@ -91,7 +110,12 @@ if (!class_exists("VWliveStreaming"))
 		$items =  $wpdb->get_results("SELECT * FROM `$table_name` where status='1' and type='1'");
 
 		echo "<ul>";
-		if ($items)	foreach ($items as $item) echo "<li><a href='" . $root_url ."wp-content/plugins/videowhisper-live-streaming-integration/ls/channel.php?n=".urlencode($item->room)."'><B>".$item->room."</B>".($item->message?": ".$item->message:"") ."</a></li>";
+		if ($items)	foreach ($items as $item) 
+		{
+			$count =  $wpdb->get_results("SELECT count(*) as no FROM `$table_name2` where status='1' and type='1' and room='".$item->room."'");
+			
+			echo "<li><a href='" . $root_url ."wp-content/plugins/videowhisper-live-streaming-integration/ls/channel.php?n=".urlencode($item->room)."'><B>".$item->room."</B> (".($count[0]->no+1).") ".($item->message?": ".$item->message:"") ."</a></li>";
+		}
 		else echo "<li>No broadcasters online.</li>";
 		echo "</ul>";
 

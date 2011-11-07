@@ -14,9 +14,10 @@ The VideoWhisper Live Streaming software can easily be used to add video broadca
 
 == Description ==
 VideoWhisper Live Streaming software integrates web applications to:
-* broadcast video live
-* embed live video streaming and chat
-* embed live video streaming only
+* Broadcast video live
+* Embed live video streaming and chat
+* Embed live video streaming only
+
 Latest version includes P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage.
  
 Use this software for adding to your site, features like on justin tv, ustream tv, mogulus, livestream, stickam, blog tv, live yahoo or their clones and alternatives.  
@@ -60,6 +61,11 @@ If your users want to broadcast their screen (when playing a game, using a progr
 More information, the latest updates, other plugins and non-WordPress editions can be found at http://www.videowhisper.com/ .
 
 == Changelog ==
+
+= 4.07 =
+* Broadcaster application v4.07
+* Widget includes counter of room participants for each room
+
 
 = 4.05 =
 * Integrated latest application versions (with broadcaster application v4.05) that include P2P. 
