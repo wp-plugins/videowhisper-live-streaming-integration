@@ -7,7 +7,7 @@ Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Donate link: http://www.videowhisper.com/?p=Invest
 Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, on air, chat, flash, fms, red5, wowza, audio, video chat, videochat, widget, plugin, media, av, livestream, station, channel, sidebar, webcam, cam, group, groups, tab, P2P
 Requires at least: 2.7
-Tested up to: 3.2.1
+Tested up to: 3.4.1
 Stable tag: trunk
 
 The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages. Also integrates with BuddyPress groups if available.
@@ -61,6 +61,11 @@ If your users want to broadcast their screen (when playing a game, using a progr
 More information, the latest updates, other plugins and non-WordPress editions can be found at http://www.videowhisper.com/ .
 
 == Changelog ==
+
+= 4.25 =
+* Broadcaster application v4.25
+* Video & sound codec settings
+* Floating watermark settings
 
 = 4.07 =
 * Broadcaster application v4.07
