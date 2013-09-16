@@ -2,6 +2,7 @@
 //vs_login.php controls watch interface (video & chat & user list) login
 
 include("../../../../wp-config.php");
+include("incsan.php");
 
 $options = get_option('VWliveStreamingOptions');
 $rtmp_server = $options['rtmp_server'];
@@ -64,6 +65,9 @@ if ($username==$roomName) $username.="_".rand(10,99);//allow viewing own room - 
 
 		
 $userType=0;
+
+$canKick = 0;
+if ($loggedin) include_once("rtmp.inc.php"); //approve session for rtmp check
 
 //replace bad words or expressions
 $filterRegex=urlencode("(?i)(fuck|cunt)(?-i)");

@@ -38,6 +38,7 @@ function load(name, div) {
 $room = $_GET['n'];
 if (!$room) $room = $_POST['n'];
 
+
 //do not allow access to other folders
 if ( strstr($room,"/") || strstr($room,"..") ) 
 {
@@ -47,6 +48,13 @@ if ( strstr($room,"/") || strstr($room,"..") )
 
 $name = $_POST['name'];
 $message = $_POST['message'];
+
+
+//security
+include_once("incsan.php");
+sanV($room);
+sanV($name);
+sanV($message, 0);
 
 $day=date("y-M-j",time());
 $chatfile = "uploads/$room/Log$day.html";

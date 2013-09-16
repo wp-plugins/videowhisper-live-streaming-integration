@@ -6,6 +6,8 @@ $room = $_POST['r'];
 //do not allow uploads to other folders
 include_once("incsan.php");
 sanV($room);
+sanV($updated);
+
 if (!$room) exit;
 
 if ($room!="null")

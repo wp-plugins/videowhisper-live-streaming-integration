@@ -1,7 +1,9 @@
 <?php
 include_once("../../../../wp-config.php");
+include("incsan.php");
 
 $options = get_option('VWliveStreamingOptions');
+
 $rtmp_server = $options['rtmp_server'];
 $rtmp_amf = $options['rtmp_amf'];
 $userName =  $options['userName']; if (!$userName) $userName='user_nicename';
@@ -9,6 +11,8 @@ $canBroadcast = $options['canBroadcast'];
 $broadcastList = $options['broadcastList'];
 
 $tokenKey = $options['tokenKey'];
+$webKey = $options['webKey'];
+
 $serverRTMFP = $options['serverRTMFP'];
 $p2pGroup = $options['p2pGroup'];
 $supportRTMP = $options['supportRTMP'];
@@ -33,7 +37,7 @@ function inList($item, $data)
 
 //username
 if ($current_user->$userName) $username=urlencode($current_user->$userName);
-$username=preg_replace("/[^0-9a-zA-Z]/","-",$username);
+sanV($username);
 
 switch ($canBroadcast)
 {
@@ -52,12 +56,17 @@ switch ($canBroadcast)
 //broadcaster
 $userlabel="";
 $room_name=$_GET['room_name'];
+sanV($room_name);
+
 if ($room_name&&$room_name!=$username) 
 {
 $userlabel=$username;
 $username=$room_name;
 $room=$room_name;
 }
+
+$canKick = 1;
+if ($loggedin) include_once("rtmp.inc.php"); //approve session for rtmp check
 
 function baseURL() {
  $pageURL = 'http';
@@ -84,4 +93,4 @@ $embedvcode =<<<EMBEDEND2
 <object width="320" height="240"><param name="movie" value="$swfurl2" /><param name="base" value="$base" /><param name="scale" value="exactfit"/><param name="allowFullScreen" value="true" /><param name="allowscriptaccess" value="always" /><embed src="$swfurl2" base="$base" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" width="320" height="240" scale="exactfit"></embed></object>
 EMBEDEND2;
 
-?>server=<?=$rtmp_server?>&serverAMF=<?=$rtmp_amf?>&tokenKey=<?=$tokenKey?>&serverRTMFP=<?=urlencode($serverRTMFP)?>&p2pGroup=<?=$p2pGroup?>&supportRTMP=<?=$supportRTMP?>&supportP2P=<?=$supportP2P?>&alwaysRTMP=<?=$alwaysRTMP?>&alwaysP2P=<?=$alwaysP2P?>&disableBandwidthDetection=<?=$disableBandwidthDetection?>&room=<?=$username?>&welcome=Welcome!&username=<?=$username?>&userlabel=<?=$userlabel?>&overLogo=<?=urlencode($options['overLogo'])?>&overLink=<?=urlencode($options['overLink'])?>&userType=3&webserver=&msg=<?=$msg?>&loggedin=<?=$loggedin?>&linkcode=<?=urlencode($linkcode)?>&embedcode=<?=urlencode($embedcode)?>&embedvcode=<?=urlencode($embedvcode)?>&imagecode=<?=urlencode($imagecode)?>&room_limit=&showTimer=1&showCredit=1&disconnectOnTimeout=1&camWidth=320&camHeight=240&camFPS=15&camBandwidth=40960&videoCodec=<?=$options['videoCodec']?>&codecProfile=<?=$options['codecProfile']?>&codecLevel=<?=$options['codecLevel']?>&soundCodec=<?=$options['soundCodec']?>&soundQuality=<?=$options['soundQuality']?>&micRate=<?=$options['micRate']?>&bufferLive=0.5&bufferFull=8&showCamSettings=1&advancedCamSettings=1&camMaxBandwidth=81920&configureSource=1&generateSnapshots=1&snapshotsTime=60000&onlyVideo=<?=$options['onlyVideo']?>&noEmbeds=<?=$options['noEmbeds']?>&loadstatus=1
+?>firstParameter=fix&server=<?=$rtmp_server?>&serverAMF=<?=$rtmp_amf?>&tokenKey=<?=$tokenKey?>&serverRTMFP=<?=urlencode($serverRTMFP)?>&p2pGroup=<?=$p2pGroup?>&supportRTMP=<?=$supportRTMP?>&supportP2P=<?=$supportP2P?>&alwaysRTMP=<?=$alwaysRTMP?>&alwaysP2P=<?=$alwaysP2P?>&disableBandwidthDetection=<?=$disableBandwidthDetection?>&room=<?=$username?>&welcome=Welcome!&username=<?=$username?>&userlabel=<?=$userlabel?>&overLogo=<?=urlencode($options['overLogo'])?>&overLink=<?=urlencode($options['overLink'])?>&userType=3&webserver=&msg=<?=$msg?>&loggedin=<?=$loggedin?>&linkcode=<?=urlencode($linkcode)?>&embedcode=<?=urlencode($embedcode)?>&embedvcode=<?=urlencode($embedvcode)?>&imagecode=<?=urlencode($imagecode)?>&room_limit=&showTimer=1&showCredit=1&disconnectOnTimeout=1&camWidth=480&camHeight=360&camFPS=15&camBandwidth=40960&videoCodec=<?=$options['videoCodec']?>&codecProfile=<?=$options['codecProfile']?>&codecLevel=<?=$options['codecLevel']?>&soundCodec=<?=$options['soundCodec']?>&soundQuality=<?=$options['soundQuality']?>&micRate=<?=$options['micRate']?>&bufferLive=0.5&bufferFull=8&showCamSettings=1&advancedCamSettings=1&camMaxBandwidth=81920&configureSource=1&generateSnapshots=1&snapshotsTime=60000&onlyVideo=<?=$options['onlyVideo']?>&noEmbeds=<?=$options['noEmbeds']?>&loadstatus=1&debug=<?=$debug?>

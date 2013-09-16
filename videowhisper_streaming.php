@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.25.3
+Version: 4.27
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -31,6 +31,9 @@ if (!class_exists("VWliveStreaming"))
 	  add_filter("plugin_action_links_$plugin",  array('VWliveStreaming','settings_link') );
 	  
 	  wp_register_sidebar_widget('liveStreamingWidget','VideoWhisper Streaming', array('VWliveStreaming', 'widget') );
+	  
+	  add_filter("the_content",array('VWliveStreaming','post_shortcodes'));
+	  		
 	  
 	    //check db
 	  	$vw_db_version = "1.1";
@@ -92,7 +95,14 @@ if (!class_exists("VWliveStreaming"))
 
 	}
 	
-	function widgetContent()
+	
+	
+	function post_shortcodes($content)
+	{
+	
+	$result = $content;
+	
+	if (strstr($content, "[videowhisper livesnapshots]")) //post requires listing channels
 	{
 		global $wpdb;
 		$table_name = $wpdb->prefix . "vw_sessions";
@@ -104,7 +114,56 @@ if (!class_exists("VWliveStreaming"))
 		$exptime=time()-30;
 		$sql="DELETE FROM `$table_name` WHERE edate < $exptime";
 		$wpdb->query($sql);
+		$wpdb->flush();
+		$sql="DELETE FROM `$table_name2` WHERE edate < $exptime";
+		$wpdb->query($sql);
+		$wpdb->flush();
+		
+		$items =  $wpdb->get_results("SELECT * FROM `$table_name` where status='1' and type='1'");
+
+		 $livesnapshotsCode .=  "<div>Live Channels";
+		if ($items)	foreach ($items as $item) 
+		{
+			$count =  $wpdb->get_results("SELECT count(*) as no FROM `$table_name2` where status='1' and type='1' and room='".$item->room."'");
+			$urlc = $root_url . "wp-content/plugins/videowhisper-live-streaming-integration/ls/channel.php?n=".urlencode($item->room);
+			$urli = $root_url . "wp-content/plugins/videowhisper-live-streaming-integration/ls/snapshots/".urlencode($item->room). ".jpg";
+			if (!file_exists("wp-content/plugins/videowhisper-live-streaming-integration/ls/snapshots/".urlencode($item->room). ".jpg")) $urli = $root_url . "wp-content/plugins/videowhisper-live-streaming-integration/ls/snapshots/no_video.png";
 			
+			 $livesnapshotsCode .= "<div style='border: 1px dotted #390; width: 240px; padding: 1px'><a href='$urlc'><IMG width='240px' SRC='$urli'><div ><B>".$item->room."</B> (".($count[0]->no+1).") ".($item->message?": ".$item->message:"") ."</div></a></div>";
+		}
+		else  $livesnapshotsCode .= "<div>No broadcasters online.</div>";
+	
+		$livesnapshotsCode .=  "</div> ";
+
+		$options = get_option('VWliveStreamingOptions');
+		$state = 'block' ;
+		if (!$options['videowhisper']) $state = 'none';	
+		$livesnapshotsCode .= '<div id="VideoWhisper" style="display: ' . $state . ';"><p>Powered by VideoWhisper <a href="http://www.videowhisper.com/?p=WordPress+Live+Streaming">Live Video Streaming Software</a>.</p></div>';
+		
+			 
+	$result = str_replace("[videowhisper livesnapshots]", $livesnapshotsCode, $result);
+	}
+		
+	return $result;
+	}
+	
+	
+	function widgetContent()
+	{
+		global $wpdb;
+		$table_name = $wpdb->prefix . "vw_sessions";
+		$table_name2 = $wpdb->prefix . "vw_lwsessions";
+		
+		$root_url = get_bloginfo( "url" ) . "/";
+		
+		//clean recordings
+		$exptime=time()-30;
+		$sql="DELETE FROM `$table_name` WHERE edate < $exptime";
+		$wpdb->query($sql);		
+		$wpdb->flush();
+		
+		$sql="DELETE FROM `$table_name2` WHERE edate < $exptime";
+		$wpdb->query($sql);		
 		$wpdb->flush();
 		
 		$items =  $wpdb->get_results("SELECT * FROM `$table_name` where status='1' and type='1'");
@@ -168,6 +227,8 @@ if (!class_exists("VWliveStreaming"))
 				'overLink' => 'http://www.videowhisper.com',
 				
 				'tokenKey' => 'VideoWhisper',
+				'webKey' => 'VideoWhisper',
+								
 				'serverRTMFP' => 'rtmfp://stratus.adobe.com/f1533cc06e4de4b56399b10d-1a624022ff71/',
 				'p2pGroup' => 'VideoWhisper',
 				'supportRTMP' => '1',
@@ -215,6 +276,8 @@ if (!class_exists("VWliveStreaming"))
 				if (isset($_POST['overLink'])) $options['overLink'] = $_POST['overLink'];
 				
 				if (isset($_POST['tokenKey'])) $options['tokenKey'] = $_POST['tokenKey'];
+				if (isset($_POST['webKey'])) $options['webKey'] = $_POST['webKey'];
+				
 				if (isset($_POST['serverRTMFP'])) $options['serverRTMFP'] = $_POST['serverRTMFP'];
 				if (isset($_POST['p2pGroup'])) $options['p2pGroup'] = $_POST['p2pGroup'];
 				if (isset($_POST['supportRTMP'])) $options['supportRTMP'] = $_POST['supportRTMP'];
@@ -262,8 +325,21 @@ if (!class_exists("VWliveStreaming"))
   <option value="0" <?=$options['videowhisper']?"":"selected"?>>No</option>
   <option value="1" <?=$options['videowhisper']?"selected":""?>>Yes</option>
 </select>
+
 <h5>Token Key</h5>
 <input name="tokenKey" type="text" id="tokenKey" size="32" maxlength="64" value="<?=$options['tokenKey']?>"/>
+<BR>A <a href="http://www.videowhisper.com/?p=RTMP+Applications#settings">secure token</a> can be used with Wowza Media Server.
+
+<h5>Web Key</h5>
+<input name="webKey" type="text" id="webKey" size="32" maxlength="64" value="<?=$options['webKey']?>"/>
+<BR>A web key can be used for <a href="http://www.videochat-scripts.com/videowhisper-rtmp-web-authetication-check/">VideoWhisper RTMP Web Session Check</a>.
+<?php
+$root_url = get_bloginfo( "url" ) . "/wp-content/plugins/videowhisper-live-streaming-integration/ls/";
+echo "<BR>webLogin:  $root_url"."rtmp_login.php?s=";
+echo "<BR>webLogout: $root_url"."rtmp_logout.php?s=";
+?>
+
+
 <h5>RTMFP Address</h5>
 <p> Get your own independent RTMFP address by registering for a free <a href="https://www.adobe.com/cfusion/entitlement/index.cfm?e=cirrus" target="_blank">Adobe Cirrus developer key</a>. This is required for P2P support.</p>
 <input name="serverRTMFP" type="text" id="serverRTMFP" size="80" maxlength="256" value="<?=$options['serverRTMFP']?>"/>

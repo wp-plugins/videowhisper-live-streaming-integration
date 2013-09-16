@@ -62,6 +62,14 @@ More information, the latest updates, other plugins and non-WordPress editions c
 
 == Changelog ==
 
+= 4.27=
+* Broadcaster application v4.27
+
+* Insert online channel snapshots in posts and pages with [videowhisper livesnapshots] shortcode
+
+* RTMP web session check support
+* External authentication
+
 = 4.25 =
 * Broadcaster application v4.25
 * Video & sound codec settings

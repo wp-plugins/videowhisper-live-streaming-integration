@@ -1,5 +1,6 @@
 <?php
 include("../../../../wp-config.php");
+include("incsan.php");
 
 $options = get_option('VWliveStreamingOptions');
 $rtmp_server = $options['rtmp_server'];
@@ -62,5 +63,8 @@ if ($username==$roomName) $username.="_".rand(10,99);//allow viewing own room - 
 $debug = "$roomName:$username";
 		
 $userType=0;
+
+$canKick = 0;
+if ($loggedin) include_once("rtmp.inc.php"); //approve session for rtmp check
 
 ?>server=<?=$rtmp_server?>&serverAMF=<?=$rtmp_amf?>&tokenKey=<?=$tokenKey?>&serverRTMFP=<?=urlencode($serverRTMFP)?>&p2pGroup=<?=$p2pGroup?>&supportRTMP=<?=$supportRTMP?>&supportP2P=<?=$supportP2P?>&alwaysRTMP=<?=$alwaysRTMP?>&alwaysP2P=<?=$alwaysP2P?>&disableBandwidthDetection=<?=$disableBandwidthDetection?>&bufferLive=0.5&bufferFull=8&welcome=Welcome!&username=<?=$username?>&userType=<?=$userType?>&msg=<?=$msg?>&loggedin=<?=$loggedin?>&visitor=<?=$visitor?>&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&overLogo=<?=urlencode($options['overLogo'])?>&overLink=<?=urlencode($options['overLink'])?>&loadstatus=1&debug=<?=$debug?>
