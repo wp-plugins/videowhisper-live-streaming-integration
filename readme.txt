@@ -13,10 +13,8 @@ Stable tag: trunk
 The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages. Also integrates with BuddyPress groups if available.
 
 == Description ==
-VideoWhisper Live Streaming software integrates web applications to:
- Broadcast video live
- Embed live video streaming and chat
- Embed live video streaming only
+VideoWhisper Live Streaming software integrates web applications to: * Broadcast video live,
+* Embed live video streaming and chat, * Embed live video streaming only.
 
 Latest version includes P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage.
  
@@ -28,9 +26,11 @@ Also includes a plugin that provides a linking widget. The widget also displays 
 
 There is a settings page with multiple parameters and permissions (what users can broadcast and watch).
 
-BuddyPress integration: If BuddyPress is installed this will add a Live Stream tab to the group where users can watch live video and chat realtime. Admins can broadcast anytime from Admin > Live Streaming.
+= BuddyPress integration =
+If BuddyPress is installed this will add a Live Stream tab to the group where users can watch live video and chat realtime. Admins can broadcast anytime from Admin > Live Streaming.
 
-Special requirements: This plugin has requirements beyond regular WordPress hosting specifications: a RTMP host is needed for persistent connections to manage live interactions and streaming. More details about this, including solutions are provided on the Installation section pages.
+= Special requirements =
+This plugin has requirements beyond regular WordPress hosting specifications: a RTMP host is needed for persistent connections to manage live interactions and streaming. More details about this, including solutions are provided on the Installation section pages.
 
 == Installation ==
 * See latest version instructions on plugin homepage: http://www.videowhisper.com/?p=WordPress+Live+Streaming
