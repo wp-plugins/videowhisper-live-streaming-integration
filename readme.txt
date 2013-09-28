@@ -13,8 +13,10 @@ Stable tag: trunk
 The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages. Also integrates with BuddyPress groups if available.
 
 == Description ==
-VideoWhisper Live Streaming software integrates web applications to: * Broadcast video live,
-* Embed live video streaming and chat, * Embed live video streaming only.
+VideoWhisper Live Streaming software integrates web applications to: 
+1. Broadcast video live,
+2. Embed live video streaming and chat, 
+3. Embed live video streaming only.
 
 Latest version includes P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage.
  
@@ -33,10 +35,13 @@ If BuddyPress is installed this will add a Live Stream tab to the group where us
 This plugin has requirements beyond regular WordPress hosting specifications: a RTMP host is needed for persistent connections to manage live interactions and streaming. More details about this, including solutions are provided on the Installation section pages.
 
 == Installation ==
-* See latest version instructions on plugin homepage: http://www.videowhisper.com/?p=WordPress+Live+Streaming
-* Before installing this make sure all hosting requirements are met: http://www.videowhisper.com/?p=Requirements
-* Install the RTMP application using these instructions: http://www.videowhisper.com/?p=RTMP+Applications
-* Copy this plugin folder to your wordpress installation in your plugins folder. You should obtain wp-content/plugins/videowhisper-live-streaming-integration .
+* See latest version instructions on plugin homepage: 
+http://www.videowhisper.com/?p=WordPress+Live+Streaming
+* Before installing this make sure all hosting requirements are met: 
+http://www.videowhisper.com/?p=Requirements
+* Install the RTMP application using these instructions: 
+http://www.videowhisper.com/?p=RTMP+Applications
+* Install from repository or copy this plugin folder to your wordpress installation in your plugins folder. You should obtain wp-content/plugins/videowhisper-live-streaming-integration .
 * Enable the plugin from Wordpress admin area and fill the "Settings", including rtmp address there.
 * Enable the widget that will add links to the broadcasting interface and current live shows. If you have BuddyPress you can skip this step and allow only group broadcast.
 
