@@ -120,11 +120,25 @@ if (!class_exists("VWliveStreaming"))
 		}
 
 
+
 		function vwls_trans()
 		{
+				function sanV(&$var)
+			{
+			if (!$var) return;
+
+			if (get_magic_quotes_gpc()) $var = stripslashes($var);
+
+				$var=preg_replace("/\.{2,}/","",$var); //allow only 1 consecutive dot
+				$var=preg_replace("/[^0-9a-zA-Z\.\-\s_]/","",$var); //do not allow special characters
+		}
+
+
 			ob_clean();
 
 			$stream = $_GET['stream'];
+			sanV($stream);
+			
 			if (!$stream)
 			{
 				echo "No stream name provided!";
@@ -138,13 +152,13 @@ if (!class_exists("VWliveStreaming"))
 			switch ($_GET['task'])
 			{
 			case 'mp4':
-			
-			 if ( !is_user_logged_in() )
-			 {
-				 echo "Not authorised!";
-				 exit;
-			 }
-			 
+
+				if ( !is_user_logged_in() )
+				{
+					echo "Not authorised!";
+					exit;
+				}
+
 				$cmd = "ps aux | grep '/i_$stream -i rtmp'";
 				exec($cmd, $output, $returnvalue);
 				//var_dump($output);
@@ -166,29 +180,29 @@ if (!class_exists("VWliveStreaming"))
 					//echo $cmd;
 					exec($cmd, $output, $returnvalue);
 					exec("echo '$cmd' >> $log_file.cmd", $output, $returnvalue);
-					
-				$cmd = "ps aux | grep '/i_$stream -i rtmp'";
-				exec($cmd, $output, $returnvalue);
-				//var_dump($output);
 
-				foreach ($output as $line) if (strstr($line, "ffmpeg"))
-					{
-						$columns = preg_split('/\s+/',$line);
-						echo "Transcoder Started (".$columns[1].")<BR>";
-					}					
-					
+					$cmd = "ps aux | grep '/i_$stream -i rtmp'";
+					exec($cmd, $output, $returnvalue);
+					//var_dump($output);
+
+					foreach ($output as $line) if (strstr($line, "ffmpeg"))
+						{
+							$columns = preg_split('/\s+/',$line);
+							echo "Transcoder Started (".$columns[1].")<BR>";
+						}
+
 				}
 				echo "<BR><a target='_blank' href='".get_bloginfo( "url" ) . "/wp-admin/admin-ajax.php?action=vwls_trans&task=html5&stream=$stream'> Preview </a>";
 				break;
-				
-				
+
+
 			case 'close':
-			 if ( !is_user_logged_in() )
-			 {
-				 echo "Not authorised!";
-				 exit;
-			 }
-			 
+				if ( !is_user_logged_in() )
+				{
+					echo "Not authorised!";
+					exit;
+				}
+
 				$cmd = "ps aux | grep '/i_$stream -i rtmp'";
 				exec($cmd, $output, $returnvalue);
 				//var_dump($output);
@@ -213,8 +227,8 @@ if (!class_exists("VWliveStreaming"))
 ?>
 <p>iOS live stream link (open with Safari or test with VLC): <a href="<?php echo $options['httpstreamer']?>i_<?php echo $stream?>/playlist.m3u8"><br />
   <?php echo $stream?> Video</a></p>
-  
-  
+
+
 <p>HTML5 live video embed below should be accessible <u>only in <B>Safari</B> browser</u> (PC or iOS):</p>
 <video width="480" height="360" autobuffer autoplay controls="controls">o
   <p>&nbsp;</p>
@@ -340,11 +354,11 @@ a {
 				if ($current_user->$userName) $username=urlencode($current_user->$userName);
 				$username=preg_replace("/\.{2,}/","",$username);
 				$username=preg_replace("/[^0-9a-zA-Z\.\-\s_]/","",$username);
-				
-			?><a href="<?php echo $root_url; ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/?n=<?php echo $username ?>"><img src="<?php echo $root_url; ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/templates/live/i_webcam.png" align="absmiddle" border="0">Video Broadcast</a>
+
+				?><a href="<?php echo $root_url; ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/?n=<?php echo $username ?>"><img src="<?php echo $root_url; ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/templates/live/i_webcam.png" align="absmiddle" border="0">Video Broadcast</a>
 	<?php
 			}
-			
+
 			$options = get_option('VWliveStreamingOptions');
 			$state = 'block' ;
 			if (!$options['videowhisper']) $state = 'none';
@@ -765,8 +779,8 @@ Settings for video subscribers that watch the live channels using watch or plain
 						echo "<tr><th>".$item->name."</th><td>".format_age(time() - $item->edate)."</td><td>".format_time($item->btime)."</td><td>".format_time($item->wtime)."</td><td>".format_age(time() - $item->rdate)."</td><td>".($item->type==2?"Premium":"Standard")."</td></tr>";
 					echo "</table>";
 				break;
-			
-			
+
+
 			case 'live':
 				$root_url = get_bloginfo( "url" ) . "/";
 				$userName =  $options['userName']; if (!$userName) $userName='user_nicename';
@@ -848,7 +862,7 @@ if (isset($liveStreaming)) {
 		require( dirname( __FILE__ ) . '/bp.php' );
 	}
 
- if (class_exists('BP_Group_Extension')) add_action( 'bp_init', 'liveStreamingBP_init' );
+	if (class_exists('BP_Group_Extension')) add_action( 'bp_init', 'liveStreamingBP_init' );
 }
 
 

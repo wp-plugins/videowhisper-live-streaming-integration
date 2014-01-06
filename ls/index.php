@@ -5,7 +5,12 @@
 </head>
 <body bgcolor="<?=$bgcolor?>">
 <?php
+
+
 $stream = $_GET['n'];
+include("incsan.php");
+sanV($stream);
+
 $swfurl="live_broadcast.swf?room=" . $stream;
 $bgcolor="#333333";
 include("flash_detect.php");
@@ -89,7 +94,6 @@ a {
 if ($stream)
 {
 include_once("../../../../wp-config.php");
-include("incsan.php");
 $options = get_option('VWliveStreamingOptions');
 
 $userName =  $options['userName']; if (!$userName) $userName='user_nicename';
