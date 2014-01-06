@@ -7,7 +7,7 @@ Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Donate link: http://www.videowhisper.com/?p=Invest
 Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, on air, chat, flash, fms, red5, wowza, audio, video chat, videochat, widget, plugin, media, av, livestream, station, channel, sidebar, webcam, cam, group, groups, tab, P2P
 Requires at least: 2.7
-Tested up to: 3.6.1
+Tested up to: 3.8
 Stable tag: trunk
 
 The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages. Also integrates with BuddyPress groups if available.
@@ -18,7 +18,15 @@ VideoWhisper Live Streaming software integrates web applications to:
 2. Embed live video streaming and chat, 
 3. Embed live video streaming only.
 
-Latest version includes P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage.
+Latest version includes:
+* codec and quality settings
+* iOS transcoding support for iPhone, iPad playback
+* usage permissions by role, email, id, name
+* premium channels
+* limit broadcasting and watch time per channel
+* stats
+* P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage
+
  
 Use this software for adding to your site, features like on justin tv, ustream tv, mogulus, livestream, stickam, blog tv, live yahoo or their clones and alternatives.  
 
@@ -44,6 +52,8 @@ http://www.videowhisper.com/?p=RTMP+Applications
 * Install from repository or copy this plugin folder to your wordpress installation in your plugins folder. You should obtain wp-content/plugins/videowhisper-live-streaming-integration .
 * Enable the plugin from Wordpress admin area and fill the "Settings", including rtmp address there.
 * Enable the widget that will add links to the broadcasting interface and current live shows. If you have BuddyPress you can skip this step and allow only group broadcast.
+* Insert online channel snapshots in posts and pages with [videowhisper livesnapshots] shortcode
+
 
 == Screenshots ==
 1. Live Broadcast (for publisher)
@@ -67,6 +77,17 @@ More information, the latest updates, other plugins and non-WordPress editions c
 
 == Changelog ==
 
+= 4.27.3 =
+* Improved admin settings with tabs and more options
+* Control access by roles, ID, email
+* Limit broadcasting and watch time per channel
+* Premium channels with better features and quality
+* Transcoding for iPhone / iPad support
+* Toggle Logo/Watermark
+* Channel statistics
+* Broadcast directly from backend without widget
+* Broadcast link only for logged in users
+
 = 4.27 =
 * Broadcaster application v4.27
 * Insert online channel snapshots in posts and pages with [videowhisper livesnapshots] shortcode
@@ -81,7 +102,6 @@ More information, the latest updates, other plugins and non-WordPress editions c
 = 4.07 =
 * Broadcaster application v4.07
 * Widget includes counter of room participants for each room
-
 
 = 4.05 =
 * Integrated latest application versions (with broadcaster application v4.05) that include P2P. 
