@@ -58,6 +58,8 @@ if ($current_user)
 
 
 $roomName=$_GET['room_name'];
+sanV($roomName);
+
 if ($username==$roomName) $username.="_".rand(10,99);//allow viewing own room - session names must be different
 
 //check room
@@ -122,6 +124,6 @@ $filterReplace=urlencode(" ** ");
 $layoutCode=<<<layoutEND
 layoutEND;
 
-if (!$welcome) $welcome="Welcome on <B>".$_GET['room_name']."</B> live streaming channel!";
+if (!$welcome) $welcome="Welcome on <B>".$roomName."</B> live streaming channel!";
 
 ?>server=<?php echo $rtmp_server?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&serverRTMFP=<?php echo urlencode($serverRTMFP)?>&p2pGroup=<?php echo $p2pGroup?>&supportRTMP=<?php echo $supportRTMP?>&supportP2P=<?php echo $supportP2P?>&alwaysRTMP=<?php echo $alwaysRTMP?>&alwaysP2P=<?php echo $alwaysP2P?>&disableBandwidthDetection=<?php echo $disableBandwidthDetection?>&bufferLive=0.5&bufferFull=8&welcome=<?php echo urlencode($welcome)?>&username=<?php echo $username?>&userType=<?php echo $userType?>&msg=<?php echo $msg?>&loggedin=<?php echo $loggedin?>&visitor=<?php echo $visitor?>&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo urlencode($options['overLink'])?>&disableVideo=0&disableChat=0&disableUsers=0&layoutCode=<?php echo urlencode($layoutCode)?>&fillWindow=0&filterRegex=<?php echo $filterRegex?>&filterReplace=<?php echo $filterReplace?>&loadstatus=1

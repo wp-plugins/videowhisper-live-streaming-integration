@@ -55,6 +55,7 @@ if ($current_user)
 }
 
 $roomName=$_GET['room_name'];
+sanV($roomName);
 if ($username==$roomName) $username.="_".rand(10,99);//allow viewing own room - session names must be different
 
 //check room
