@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.27.5
+Version: 4.27.6
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -346,19 +346,43 @@ if (!class_exists("VWliveStreaming"))
             $channels = get_posts( $args );
             if (count($channels))
             {
-               require_once( ABSPATH . 'wp-admin/includes/image.php' );
+                require_once( ABSPATH . 'wp-admin/includes/image.php' );
 
                 $htmlCode .= '<table>';
 
                 foreach ($channels as $channel)
                 {
-           
-                $attach_id = get_post_thumbnail_id($channel->ID );
-                $thumbFilename = get_attached_file($attach_id);           
-                $attach_data = wp_generate_attachment_metadata( $attach_id, $thumbFilename );
-                wp_update_attachment_metadata( $attach_id, $attach_data );
-                     
-                
+
+
+                    //update thumb
+                    $stream = sanitize_file_name(get_the_title($channel->ID));
+                    $dir = $options['uploadsPath']. "/_thumbs";
+                    $thumbFilename = "$dir/$stream.jpg";
+
+                    if ( file_exists($thumbFilename) && (get_the_post_thumbnail( $postID ) == ''))
+                    {
+                        $wp_filetype = wp_check_filetype(basename($thumbFilename), null );
+
+                        $attachment = array(
+                            'guid' => $thumbFilename,
+                            'post_mime_type' => $wp_filetype['type'],
+                            'post_title' => preg_replace( '/\.[^.]+$/', '', basename( $thumbFilename, ".jpg" ) ),
+                            'post_content' => '',
+                            'post_status' => 'inherit'
+                        );
+
+                        $attach_id = wp_insert_attachment( $attachment, $thumbFilename, $postID );
+                    }
+                    else
+                    {
+                        $attach_id = get_post_thumbnail_id($channel->ID );
+                        $thumbFilename = get_attached_file($attach_id);
+                    }
+
+                    $attach_data = wp_generate_attachment_metadata( $attach_id, $thumbFilename );
+                    wp_update_attachment_metadata( $attach_id, $attach_data );
+
+
                     $htmlCode .= '<tr><td><a href="' . get_permalink($channel->ID) . '"><h4>' . $channel->post_title . '</h4>' .  get_the_post_thumbnail($channel->ID, 'medium') . '</a></td>';
                     $htmlCode .= '<td width="210px">';
                     $htmlCode .= '<BR><BR><a class="videowhisperButton" href="' . get_permalink($channel->ID) . '/broadcast"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_webcam.png" align="absmiddle">Broadcast</a>';
@@ -501,7 +525,7 @@ var aurl = '$ajaxurl';
 			}
 		});
 	}
-	
+
 	$(function(){
 		loadChannels();
 		setInterval("loadChannels()", 10000);
@@ -1053,11 +1077,11 @@ HTMLCODE;
         function vwls_channels() //list channels
             {
 
-            function path2url($file, $Protocol='http://') 
+            function path2url($file, $Protocol='http://')
             {
                 return $Protocol.$_SERVER['HTTP_HOST'].str_replace($_SERVER['DOCUMENT_ROOT'], '', $file);
             }
-            
+
             function format_age($t)
             {
                 if ($t<30) return "LIVE";
@@ -1066,7 +1090,7 @@ HTMLCODE;
 
             $perPage = (int) $_GET['pp'];
             if (!$perPage) $perPage = 4;
-            
+
             $page = (int) $_GET['p'];
             $offset = $page * $perPage;
 
@@ -1101,7 +1125,7 @@ HTMLCODE;
                 }
 
             $ajaxurl = admin_url() . 'admin-ajax.php?action=vwls_channels&pp='.$perPage;
-            
+
             echo "<BR>";
             if ($page>0) echo '<a class="videowhisperButton" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page-1). '\'; loadChannels();">Previous</a>';
 
@@ -1314,13 +1338,13 @@ a {
             if ($items) foreach ($items as $item)
                 {
                     $count =  $wpdb->get_results("SELECT count(*) as no FROM `$table_name2` where status='1' and type='1' and room='".$item->room."'");
-                    
-                    
-                   $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $item->room . "' and post_type='channel' LIMIT 0,1" );
+
+
+                    $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $item->room . "' and post_type='channel' LIMIT 0,1" );
                     if ($postID) $url = get_post_permalink($postID);
                     else $url = plugin_dir_url(__FILE__) . 'ls/channel.php?n=' . urlencode($item->name);
-                    
-                    
+
+
                     $urli = $root_url . "wp-content/plugins/videowhisper-live-streaming-integration/ls/snapshots/".urlencode($item->room). ".jpg";
                     if (!file_exists("wp-content/plugins/videowhisper-live-streaming-integration/ls/snapshots/".urlencode($item->room). ".jpg")) $urli = $root_url .
                             "wp-content/plugins/videowhisper-live-streaming-integration/ls/snapshots/no_video.png";
@@ -1368,7 +1392,7 @@ Streaming Software</a>.</p></div>';
                 {
                     $count =  $wpdb->get_results("SELECT count(*) as no FROM `$table_name2` where status='1' and type='1' and room='".$item->room."'");
 
-                   $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $item->room . "' and post_type='channel' LIMIT 0,1" );
+                    $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $item->room . "' and post_type='channel' LIMIT 0,1" );
                     if ($postID) $url = get_post_permalink($postID);
                     else $url = plugin_dir_url(__FILE__) . 'ls/channel.php?n=' . urlencode($item->name);
 
@@ -1543,7 +1567,7 @@ Software</a>.</p></div>';
 
                 $broadcast_url = admin_url() . 'admin-ajax.php?action=vwls_broadcast&n=';
                 $root_url = get_bloginfo( "url" ) . "/";
-          
+
 
                 $userName =  $options['userName']; if (!$userName) $userName='user_nicename';
                 global $current_user;
@@ -1623,7 +1647,7 @@ align="absmiddle" border="0"><?php echo $broadcast_url . urlencode($username); ?
 <?php
                 break;
             case 'server':
-            
+
 ?>
 <h3>Server Settings</h3>
 Configure options for live interactions and streaming.
@@ -1941,7 +1965,7 @@ Settings for video subscribers that watch the live channels using watch or plain
 	     <h4>[videowhisper_channels perPage="4"]</h4>
 	     Lists channels with snapshots, ordered by most recent online and with pagination.
      </li>
-     
+
      <li>
 	     <h4>[videowhisper_livesnapshots]</h4>
 	     Displays full size snapshots of online channels. No pagination.
