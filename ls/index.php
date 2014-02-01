@@ -5,8 +5,6 @@
 </head>
 <body bgcolor="<?=$bgcolor?>">
 <?php
-
-
 $stream = $_GET['n'];
 include("incsan.php");
 sanV($stream);
@@ -158,6 +156,5 @@ iOS Transcoding (iPhone/iPad)<BR>
 }
 }
 ?>
-
 </body>
 </html>

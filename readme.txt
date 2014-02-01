@@ -10,7 +10,7 @@ Requires at least: 2.7
 Tested up to: 3.8
 Stable tag: trunk
 
-The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages. Also integrates with BuddyPress groups if available.
+The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages and other sites. 
 
 == Description ==
 VideoWhisper Live Streaming software integrates web applications to: 
@@ -26,7 +26,8 @@ Latest version includes:
 * limit broadcasting and watch time per channel
 * stats
 * P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage
-
+* channel setup and management page in frontend
+* channel listings with live AJAX updates
  
 Use this software for adding to your site, features like on justin tv, ustream tv, mogulus, livestream, stickam, blog tv, live yahoo or their clones and alternatives.  
 
@@ -59,6 +60,8 @@ http://www.videowhisper.com/?p=RTMP+Applications
 1. Live Broadcast (for publisher)
 2. Live Video Watch (for active viewers, discuss online, see who else is watching)
 3. Live Video Streaming (for passive viewers, simple live video)
+4. Setup channels in fronted (depending on user permissions)
+5. Channels listing with AJAX live updates
 
 == Desktop Sharing / Screen Broadcasting ==
 If your users want to broadcast their screen (when playing a game, using a program, tutoring various computer skills) they can do that easily just by using a screen sharing driver that simulates a webcam from desktop contents. Read more on http://www.videochat-scripts.com/screen-sharing-with-flash-video-chat-software/ . 
@@ -76,6 +79,12 @@ If your users want to broadcast their screen (when playing a game, using a progr
 More information, the latest updates, other plugins and non-WordPress editions can be found at http://www.videowhisper.com/ .
 
 == Changelog ==
+
+= 4.27.4 =
+* Channel posts with frontend management and automated snapshot
+* Channel management page where users can setup channes from frontend
+* Channels list page, automatically updated with AJAX, pagination
+* Shortcodes watch, video, HTML5 HLS, broadcast
 
 = 4.27.3 =
 * Improved admin settings with tabs and more options
