@@ -1543,6 +1543,7 @@ Software</a>.</p></div>';
 
                 $broadcast_url = admin_url() . 'admin-ajax.php?action=vwls_broadcast&n=';
                 $root_url = get_bloginfo( "url" ) . "/";
+          
 
                 $userName =  $options['userName']; if (!$userName) $userName='user_nicename';
                 global $current_user;
@@ -1622,6 +1623,7 @@ align="absmiddle" border="0"><?php echo $broadcast_url . urlencode($username); ?
 <?php
                 break;
             case 'server':
+            
 ?>
 <h3>Server Settings</h3>
 Configure options for live interactions and streaming.
@@ -1654,9 +1656,10 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 <input name="webKey" type="text" id="webKey" size="32" maxlength="64" value="<?php echo $options['webKey']?>"/>
 <BR>A web key can be used for <a href="http://www.videochat-scripts.com/videowhisper-rtmp-web-authetication-check/">VideoWhisper RTMP Web Session Check</a>.
 <?php
-                $root_url = get_bloginfo( "url" ) . "/wp-content/plugins/videowhisper-live-streaming-integration/ls/";
-                echo "<BR>webLogin:  $root_url"."rtmp_login.php?s=";
-                echo "<BR>webLogout: $root_url"."rtmp_logout.php?s=";
+                $admin_ajax = admin_url() . 'admin-ajax.php';
+
+                echo "<BR>webLogin:  $admin_ajax"."?action=vwls&task=rtmp_login&s=";
+                echo "<BR>webLogout: $admin_ajax"."?action=vwls&task=rtmp_logout&s=";
 ?>
 
 <h4>RTMFP Address</h4>
