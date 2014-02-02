@@ -558,7 +558,7 @@ display:inline-block;
 
 .videowhisperChannel IMG
 {
-padding:2px;
+padding:1px;
 }
 
 .videowhisperTitle
@@ -574,9 +574,9 @@ text-shadow:1px 1px 1px #333;
 .videowhisperTime
 {
 position: absolute;
-bottom:5px;
+bottom:8px;
 left:5px;
-font-size: 16px;
+font-size: 15px;
 color: #FFF;
 text-shadow:1px 1px 1px #333;
 }
@@ -2010,41 +2010,15 @@ align="absmiddle" border="0">Start Broadcasting</a>
                     ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/templates/live/i_uvideo.png" align="absmiddle" border="0">View Channel</a>
 </li>
 </ul>
-<p>To allow users to broadcast from frontend (as configured in settings), <a href='widgets.php'>enable the widget</a>.
+<p>To allow users to broadcast from frontend (as configured in settings), <a href='widgets.php'>enable the widget</a> and/or channel posts and frontend management page. On some templates/setups you also need to add the page to site menu.
 </p>
 <?php
                 }
 ?>
-<h4>Online Channels</h4>
+<h4>Recent Channels</h4>
 <?php
 
-                global $wpdb;
-                $table_name = $wpdb->prefix . "vw_sessions";
-                $table_name2 = $wpdb->prefix . "vw_lwsessions";
-                $table_name3 = $wpdb->prefix . "vw_lsrooms";
-
-                //clean recordings
-                $exptime=time()-30;
-                $sql="DELETE FROM `$table_name` WHERE edate < $exptime";
-                $wpdb->query($sql);
-                $wpdb->flush();
-
-                $sql="DELETE FROM `$table_name2` WHERE edate < $exptime";
-                $wpdb->query($sql);
-                $wpdb->flush();
-
-                $items =  $wpdb->get_results("SELECT * FROM `$table_name` where status='1' and type='1' LIMIT 0,50");
-
-                echo "<ul>";
-                if ($items) foreach ($items as $item)
-                    {
-                        $count =  $wpdb->get_results("SELECT count(*) as no FROM `$table_name2` where status='1' and type='1' and room='".$item->room."'");
-
-                        echo "<li><a href='" . $root_url ."wp-content/plugins/videowhisper-live-streaming-integration/ls/channel.php?n=".urlencode($item->room)."'><B>".$item->room."</B>
-(".($count[0]->no+1).") ".($item->message?": ".$item->message:"") ."</a></li>";
-                    }
-                else echo "<li>No broadcasters online.</li>";
-                echo "</ul>";
+                echo do_shortcode('[videowhisper_channels]');
 
                 break;
             }
