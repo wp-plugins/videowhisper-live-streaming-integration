@@ -63,19 +63,7 @@ var $enable_edit_item = true; // If your extension does not need an edit screen,
 	else
 	{
 	
-		$baseurl=$root_url . "wp-content/plugins/videowhisper-live-streaming-integration/ls/";
-		$swfurl=$baseurl."live_broadcast.swf?room=".urlencode($bp->groups->current_group->slug);
-		?>
-	    <div id="videowhisper_livestreaming" style="height:500px" >
-		<object width="100%" height="100%">
-        <param name="movie" value="<?=$swfurl?>" /><param name="base" value="<?=$baseurl?>" /><param name="scale" value="noscale" /><param name="wmode" value="transparent" /><param name="salign" value="lt"></param><param name="allowFullScreen" value="true"></param><param name="allowscriptaccess" value="always"></param><embed width="100%" height="100%" scale="noscale" salign="lt" src="<?=$swfurl?>" base="<?=$baseurl?>" wmode="transparent" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true"></embed>
-        </object>
-		<noscript>
-		<p align="center"><strong>Video Whisper <a href="http://www.videowhisper.com/?p=Live+Streaming">Live Web Video Streaming Software</a> requires the Adobe Flash Player:
-		<a href="http://get.adobe.com/flashplayer/">Get Latest Flash</a></strong>!</p>
-		</noscript>
-		</div>
-		<?php
+		echo do_shortcode('[videowhisper_broadcast channel="' .$bp->groups->current_group->slug. '"]');
 	}	
 	}
 
@@ -103,19 +91,7 @@ var $enable_edit_item = true; // If your extension does not need an edit screen,
 		global $bp;
 		$root_url = get_bloginfo( "url" ) . "/";
 		
-		$baseurl=$root_url . "wp-content/plugins/videowhisper-live-streaming-integration/ls/";
-		$swfurl=$baseurl."live_watch.swf?n=".urlencode($bp->groups->current_group->slug);
-		?>
-	    <div id="videowhisper_livestreaming" style="height:350px" >
-		<object width="100%" height="100%">
-        <param name="movie" value="<?=$swfurl?>" /><param name="base" value="<?=$baseurl?>" /><param name="scale" value="noscale" /><param name="salign" value="lt"></param><param name="wmode" value="transparent" /><param name="allowFullScreen" value="true"></param><param name="allowscriptaccess" value="always"></param><embed width="100%" height="100%" scale="noscale" salign="lt" src="<?=$swfurl?>" base="<?=$baseurl?>"  wmode="transparent"  type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true"></embed>
-        </object>
-		<noscript>
-		<p align="center"><strong>Video Whisper <a href="http://www.videowhisper.com/?p=Live+Streaming">Live Web Video Streaming Software</a> requires the Adobe Flash Player:
-		<a href="http://get.adobe.com/flashplayer/">Get Latest Flash</a></strong>!</p>
-		</noscript>
-		</div>
-			<?
+		echo do_shortcode('[videowhisper_watch channel="' .$bp->groups->current_group->slug. '"]');
 	}
 
 	function widget_display() { ?>
