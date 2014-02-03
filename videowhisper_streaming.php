@@ -17,6 +17,12 @@ if (!class_exists("VWliveStreaming"))
 
         }
 
+        static function install() {
+            // do not generate any output here
+
+            flush_rewrite_rules();
+
+          }
 
         function settings_link($links) {
             $settings_link = '<a href="options-general.php?page=videowhisper_streaming.php">'.__("Settings").'</a>';
@@ -57,7 +63,13 @@ if (!class_exists("VWliveStreaming"))
             add_action( 'wp_ajax_nopriv_vwls_channels', array('VWliveStreaming','vwls_channels'));
 
 
-            //check db
+            //update page if not exists or deleted
+            $page_id = get_option("vwls_page_manage");
+            $page_id2 = get_option("vwls_page_channels");
+
+            if (!$page_id || $page_id == "-1" || !$page_id2 || $page_id2 == "-1")  add_action('wp_loaded', array('VWliveStreaming','updatePages'));
+
+           //check db and update if necessary
             $vw_db_version = "1.2";
 
             global $wpdb;
@@ -139,13 +151,6 @@ if (!class_exists("VWliveStreaming"))
 
                 $wpdb->flush();
             }
-
-
-            //update page if not exists or deleted
-            $page_id = get_option("vwls_page_manage");
-            $page_id2 = get_option("vwls_page_channels");
-
-            if (!$page_id || $page_id == "-1" || !$page_id2 || $page_id2 == "-1")  add_action('wp_loaded', array('VWliveStreaming','updatePages'));
 
 
         }
@@ -530,7 +535,7 @@ var aurl = '$ajaxurl';
 		loadChannels();
 		setInterval("loadChannels()", 10000);
 	});
-	
+
 </script>
 
 <div id="videowhisperChannels">
@@ -793,8 +798,8 @@ HTMLCODE;
             if (!$stream) $stream = $atts['channel'];
 
             if ($options['anyChannels'])
-            if (!$stream) $stream = $_GET['n'];
-   
+                if (!$stream) $stream = $_GET['n'];
+
 
                 if ($options['userChannels'])
                     if (!$stream) //username
@@ -805,8 +810,8 @@ HTMLCODE;
                         if ($current_user->$userName) $username = $current_user->$userName;
                         $stream = $username;
                     }
-                    
-            $stream = sanitize_file_name($stream);
+
+                $stream = sanitize_file_name($stream);
 
 
             if (!$stream)
@@ -1017,12 +1022,6 @@ HTMLCODE;
             return $addCode . $content;
         }
 
-        function channel_endpoint(){
-            add_rewrite_endpoint( 'broadcast', EP_ALL );
-            add_rewrite_endpoint( 'video', EP_ALL );
-            add_rewrite_endpoint( 'hls', EP_ALL );
-        }
-
         function channel_query_vars( $query_vars ){
             // array of recognized query vars
             $query_vars[] = 'broadcast';
@@ -1037,7 +1036,9 @@ HTMLCODE;
             $options = VWliveStreaming::getAdminOptions();
             if (!$options['postChannels']) return;
 
-
+            //only if missing
+            if (post_type_exists('channel')) return;
+            
             $labels = array(
                 'name'                => _x( 'Channels', 'Post Type General Name', 'text_domain' ),
                 'singular_name'       => _x( 'Channel', 'Post Type Singular Name', 'text_domain' ),
@@ -1073,6 +1074,12 @@ HTMLCODE;
                 'capability_type'     => 'page',
             );
             register_post_type( 'channel', $args );
+            
+            add_rewrite_endpoint( 'broadcast', EP_ALL );
+            add_rewrite_endpoint( 'video', EP_ALL );
+            add_rewrite_endpoint( 'hls', EP_ALL );
+
+            flush_rewrite_rules();
 
         }
 
@@ -1947,13 +1954,13 @@ Settings for video subscribers that watch the live channels using watch or plain
                     if ($t<30) return "LIVE";
                     return sprintf("%d%s%d%s%d%s", floor($t/86400), 'd ', ($t/3600)%24,'h ', ($t/60)%60,'m');
                 }
-if ($_GET['regenerateThumbs'])
-{
-                $dir=$options['uploadsPath'];
-                $dir .= "/_snapshots";
-echo '<div class="info">Regenerating thumbs for listed channels.</div>';
-}
-                
+                if ($_GET['regenerateThumbs'])
+                {
+                    $dir=$options['uploadsPath'];
+                    $dir .= "/_snapshots";
+                    echo '<div class="info">Regenerating thumbs for listed channels.</div>';
+                }
+
                 global $wpdb;
                 $table_name = $wpdb->prefix . "vw_sessions";
                 $table_name2 = $wpdb->prefix . "vw_lwsessions";
@@ -1962,38 +1969,38 @@ echo '<div class="info">Regenerating thumbs for listed channels.</div>';
                 $items =  $wpdb->get_results("SELECT * FROM `$table_name3` ORDER BY edate DESC LIMIT 0, 100");
                 echo "<table class='wp-list-table widefat'><thead><tr><th>Channel</th><th>Last Access</th><th>Broadcast Time</th><th>Watch Time</th><th>Last Reset</th><th>Type</th></tr></thead>";
                 if ($items) foreach ($items as $item)
-                {
-                        echo "<tr><th>".$item->name;
-                 
-                 if ($_GET['regenerateThumbs'])
-                 {
-                    //
-                    $stream=$item->name;
-                    $filename = "$dir/$stream.jpg";
-                    
-                    if (file_exists($filename))
                     {
-                    //generate thumb
-                    $thumbWidth = $options['thumbWidth'];
-                    $thumbHeight = $options['thumbHeight'];
-                    
-                    $src = imagecreatefromjpeg($filename);
-                    list($width, $height) = getimagesize($filename);
-                    $tmp = imagecreatetruecolor($thumbWidth, $thumbHeight);
+                        echo "<tr><th>".$item->name;
 
-                    $dir = $options['uploadsPath']. "/_thumbs";
-                    if (!file_exists($dir)) mkdir($dir);
+                        if ($_GET['regenerateThumbs'])
+                        {
+                            //
+                            $stream=$item->name;
+                            $filename = "$dir/$stream.jpg";
 
-                    $thumbFilename = "$dir/$stream.jpg";
-                    imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
-                    imagejpeg($tmp, $thumbFilename, 95);
-                    } else echo "<div class='warning'>Snapshot missing!</div>";
+                            if (file_exists($filename))
+                            {
+                                //generate thumb
+                                $thumbWidth = $options['thumbWidth'];
+                                $thumbHeight = $options['thumbHeight'];
 
-echo "</th><td>".format_age(time() - $item->edate)."</td><td>".format_time($item->btime)."</td><td>".format_time($item->wtime)."</td><td>".format_age(time() - $item->rdate)."</td><td>".($item->type==2?"Premium":"Standard")."</td></tr>";
-                  //   
-                 }
-                }
-                    echo "</table>";
+                                $src = imagecreatefromjpeg($filename);
+                                list($width, $height) = getimagesize($filename);
+                                $tmp = imagecreatetruecolor($thumbWidth, $thumbHeight);
+
+                                $dir = $options['uploadsPath']. "/_thumbs";
+                                if (!file_exists($dir)) mkdir($dir);
+
+                                $thumbFilename = "$dir/$stream.jpg";
+                                imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
+                                imagejpeg($tmp, $thumbFilename, 95);
+                            } else echo "<div class='warning'>Snapshot missing!</div>";
+
+                            echo "</th><td>".format_age(time() - $item->edate)."</td><td>".format_time($item->btime)."</td><td>".format_time($item->wtime)."</td><td>".format_age(time() - $item->rdate)."</td><td>".($item->type==2?"Premium":"Standard")."</td></tr>";
+                            //
+                        }
+                    }
+                echo "</table>";
                 break;
 
             case 'shortcodes';
@@ -2159,7 +2166,7 @@ align="absmiddle" border="0">Start Broadcasting</a>
                     //generate thumb
                     $thumbWidth = $options['thumbWidth'];
                     $thumbHeight = $options['thumbHeight'];
-                    
+
                     $src = imagecreatefromjpeg($filename);
                     list($width, $height) = getimagesize($filename);
                     $tmp = imagecreatetruecolor($thumbWidth, $thumbHeight);
@@ -3245,8 +3252,11 @@ if (class_exists("VWliveStreaming")) {
 
 //Actions and Filters
 if (isset($liveStreaming)) {
+
+    register_activation_hook( __FILE__, array(&$liveStreaming, 'install' ) );
+
     add_action( 'init', array(&$liveStreaming, 'channel_post'));
-    add_action( 'init', array(&$liveStreaming, 'channel_endpoint'));
+
     add_action("plugins_loaded", array(&$liveStreaming, 'init'));
     add_action('admin_menu', array(&$liveStreaming, 'menu'));
 
