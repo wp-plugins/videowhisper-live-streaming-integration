@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29
+Version: 4.29.2
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -356,7 +356,7 @@ if (!class_exists("VWliveStreaming"))
 
                     //update thumb
                     $stream = sanitize_file_name(get_the_title($channel->ID));
-                    $dir = $options['uploadsPath']. "/_thumbs";
+                    $dir = $options['uploadsPath']. "/_snapshots";
                     $thumbFilename = "$dir/$stream.jpg";
 
                     if ( file_exists($thumbFilename) && (get_the_post_thumbnail( $postID ) == ''))
@@ -529,8 +529,8 @@ var aurl = '$ajaxurl';
 	$(function(){
 		loadChannels();
 		setInterval("loadChannels()", 10000);
-
 	});
+	
 </script>
 
 <div id="videowhisperChannels">
@@ -544,12 +544,10 @@ var aurl = '$ajaxurl';
 position: relative;
 display:inline-block;
 
-	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
-	-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
-	box-shadow:inset 0px 1px 0px 0px #ffffff;
-
 	border:1px solid #dcdcdc;
-	background-color:#333;
+	background-color:#777;
+	padding: 0px;
+	margin: 2px;
 }
 
 .videowhisperChannel:hover {
@@ -558,7 +556,9 @@ display:inline-block;
 
 .videowhisperChannel IMG
 {
-padding:1px;
+padding: 0px;
+margin: 0px;
+border: 0px;
 }
 
 .videowhisperTitle
@@ -988,7 +988,7 @@ HTMLCODE;
 
             //set thumb
             $stream = sanitize_file_name(get_the_title($postID));
-            $dir = $options['uploadsPath']. "/_thumbs";
+            $dir = $options['uploadsPath']. "/_snapshots";
             $thumbFilename = "$dir/$stream.jpg";
 
             if ( file_exists($thumbFilename) && (get_the_post_thumbnail( $postID ) == ''))
@@ -1087,19 +1087,20 @@ HTMLCODE;
 
             function format_age($t)
             {
-                if ($t<30) return "LIVE";
+                if ($t<60) return "LIVE";
                 return sprintf("%d%s%d%s%d%s", floor($t/86400), 'd ', ($t/3600)%24,'h ', ($t/60)%60,'m ago');
             }
 
+            $options = VWliveStreaming::getAdminOptions();
+
             $perPage = (int) $_GET['pp'];
-            if (!$perPage) $perPage = 4;
+            if (!$perPage) $perPage = $options['perPage'];
 
             $page = (int) $_GET['p'];
             $offset = $page * $perPage;
 
             ob_clean();
 
-            $options = VWliveStreaming::getAdminOptions();
             $dir = $options['uploadsPath']. "/_thumbs";
 
 
@@ -1122,17 +1123,17 @@ HTMLCODE;
                     else $url = plugin_dir_url(__FILE__) . 'ls/channel.php?n=' . urlencode($item->name);
 
 
-                    if (file_exists($thumbFilename)) echo '<a href="' . $url . '"><IMG src="' . path2url($thumbFilename) . '"></a>';
-                    else echo '<a href="' . $url . '"><IMG SRC="' . plugin_dir_url(__FILE__). 'screenshot-3.jpg" width="320px" height="240px"></a>';
+                    if (file_exists($thumbFilename)) echo '<a href="' . $url . '"><IMG src="' . path2url($thumbFilename) . '" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
+                    else echo '<a href="' . $url . '"><IMG SRC="' . plugin_dir_url(__FILE__). 'screenshot-3.jpg" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
                     echo "</div>";
                 }
 
             $ajaxurl = admin_url() . 'admin-ajax.php?action=vwls_channels&pp='.$perPage;
 
             echo "<BR>";
-            if ($page>0) echo '<a class="videowhisperButton" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page-1). '\'; loadChannels();">Previous</a>';
+            if ($page>0) echo ' <a class="videowhisperButton" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page-1). '\'; loadChannels();">Previous</a> ';
 
-            if (count($items) == $perPage) echo '<a class="videowhisperButton" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page+1). '\'; loadChannels();">Next</a>';
+            if (count($items) == $perPage) echo ' <a class="videowhisperButton" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page+1). '\'; loadChannels();">Next</a> ';
 
 
             die;
@@ -1451,6 +1452,9 @@ Software</a>.</p></div>';
                 'anyChannels' => '0',
                 'disablePage' => '0',
                 'disablePageC' => '0',
+                'thumbWidth' => '240',
+                'thumbHeight' => '180',
+                'perPage' =>'6',
 
 
                 'postName' => 'custom',
@@ -1601,7 +1605,6 @@ Software</a>.</p></div>';
 <input name="maxChannels" type="text" id="maxChannels" size="2" maxlength="4" value="<?php echo $options['maxChannels']?>"/>
 <BR>Maximum channels users are allowed to create from frontend if channel posts are enabled.
 
-
 <h4>User Channels</h4>
 <select name="userChannels" id="userChannels">
   <option value="1" <?php echo $options['userChannels']?"selected":""?>>Yes</option>
@@ -1639,6 +1642,17 @@ align="absmiddle" border="0"><?php echo $broadcast_url . urlencode($username); ?
   <option value="0" <?php echo $options['disablePageC']=='0'?"selected":""?>>Yes</option>
   <option value="1" <?php echo $options['disablePageC']=='1'?"selected":""?>>No</option>
 </select>
+
+<h4>Channel Thumb Width</h4>
+<input name="thumbWidth" type="text" id="thumbWidth" size="4" maxlength="4" value="<?php echo $options['thumbWidth']?>"/>
+
+<h4>Channel Thumb Height</h4>
+<input name="thumbHeight" type="text" id="thumbHeight" size="4" maxlength="4" value="<?php echo $options['thumbHeight']?>"/>
+<BR><a href="options-general.php?page=videowhisper_streaming.php&tab=stats&regenerateThumbs=1">Regenerate Thumbs</a>
+
+<h4>Default Channels Per Page</h4>
+<input name="perPage" type="text" id="perPage" size="3" maxlength="3" value="<?php echo $options['perPage']?>"/>
+
 
 
 <h4>Show VideoWhisper Powered by</h4>
@@ -1933,7 +1947,13 @@ Settings for video subscribers that watch the live channels using watch or plain
                     if ($t<30) return "LIVE";
                     return sprintf("%d%s%d%s%d%s", floor($t/86400), 'd ', ($t/3600)%24,'h ', ($t/60)%60,'m');
                 }
-
+if ($_GET['regenerateThumbs'])
+{
+                $dir=$options['uploadsPath'];
+                $dir .= "/_snapshots";
+echo '<div class="info">Regenerating thumbs for listed channels.</div>';
+}
+                
                 global $wpdb;
                 $table_name = $wpdb->prefix . "vw_sessions";
                 $table_name2 = $wpdb->prefix . "vw_lwsessions";
@@ -1942,8 +1962,37 @@ Settings for video subscribers that watch the live channels using watch or plain
                 $items =  $wpdb->get_results("SELECT * FROM `$table_name3` ORDER BY edate DESC LIMIT 0, 100");
                 echo "<table class='wp-list-table widefat'><thead><tr><th>Channel</th><th>Last Access</th><th>Broadcast Time</th><th>Watch Time</th><th>Last Reset</th><th>Type</th></tr></thead>";
                 if ($items) foreach ($items as $item)
-                        echo "<tr><th>".$item->name."</th><td>".format_age(time() -
-                            $item->edate)."</td><td>".format_time($item->btime)."</td><td>".format_time($item->wtime)."</td><td>".format_age(time() - $item->rdate)."</td><td>".($item->type==2?"Premium":"Standard")."</td></tr>";
+                {
+                        echo "<tr><th>".$item->name;
+                 
+                 if ($_GET['regenerateThumbs'])
+                 {
+                    //
+                    $stream=$item->name;
+                    $filename = "$dir/$stream.jpg";
+                    
+                    if (file_exists($filename))
+                    {
+                    //generate thumb
+                    $thumbWidth = $options['thumbWidth'];
+                    $thumbHeight = $options['thumbHeight'];
+                    
+                    $src = imagecreatefromjpeg($filename);
+                    list($width, $height) = getimagesize($filename);
+                    $tmp = imagecreatetruecolor($thumbWidth, $thumbHeight);
+
+                    $dir = $options['uploadsPath']. "/_thumbs";
+                    if (!file_exists($dir)) mkdir($dir);
+
+                    $thumbFilename = "$dir/$stream.jpg";
+                    imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
+                    imagejpeg($tmp, $thumbFilename, 95);
+                    } else echo "<div class='warning'>Snapshot missing!</div>";
+
+echo "</th><td>".format_age(time() - $item->edate)."</td><td>".format_time($item->btime)."</td><td>".format_time($item->wtime)."</td><td>".format_age(time() - $item->rdate)."</td><td>".($item->type==2?"Premium":"Standard")."</td></tr>";
+                  //   
+                 }
+                }
                     echo "</table>";
                 break;
 
@@ -2108,8 +2157,9 @@ align="absmiddle" border="0">Start Broadcasting</a>
                     }
 
                     //generate thumb
-                    $thumbWidth = 320;
-                    $thumbHeight = 240;
+                    $thumbWidth = $options['thumbWidth'];
+                    $thumbHeight = $options['thumbHeight'];
+                    
                     $src = imagecreatefromjpeg($filename);
                     list($width, $height) = getimagesize($filename);
                     $tmp = imagecreatetruecolor($thumbWidth, $thumbHeight);
@@ -2922,7 +2972,7 @@ lt=last session time received from this script in (milliseconds)
                         $maximumSessionTime *=1000;
 
                         //update
-                        $sql="UPDATE `$table_name3` set edate=$ztime, wtime = " . $channel->wtime . " where name='$r'";
+                        $sql="UPDATE `$table_name3` set wtime = " . $channel->wtime . " where name='$r'";
                         $wpdb->query($sql);
                     }
 
