@@ -1,6 +1,8 @@
 <?php
 //BuddyPress Integration
 
+if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+
 class liveStreamingGroup extends BP_Group_Extension {	
 
 var $visibility = 'public'; // 'public' will show your extension to non-group members, 'private' means you have to be a member of the group to view your extension.

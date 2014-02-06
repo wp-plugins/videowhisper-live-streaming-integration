@@ -1,8 +1,11 @@
 <head>
 <?php
 $n=$_GET["n"];
+include("incsan.php");
+sanV($n);
 
 $swfurl="live_watch.swf?n=".urlencode($n);
+
 $bgcolor="#333333";
 ?><style type="text/css">
 <!--
@@ -36,19 +39,11 @@ include("flash_detect.php");
       </strong></p></td>
   </tr>
   <tr>
-    <td height=400 bgcolor="#333333">
-	
+  <td height="400px" bgcolor="#333333">
 	<object width="100%" height="100%">
       <param name="movie" value="<?=$swfurl?>"></param><param bgcolor="<?=$bgcolor?>" /><param name="scale" value="noscale" /><param name="salign" value="lt"></param><param name="allowFullScreen" value="true"></param><param name="allowscriptaccess" value="always"></param><embed width="100%" height="100%" scale="noscale" salign="lt" src="<?=$swfurl?>" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" bgcolor="<?=$bgcolor?>></embed>
     </object>
-	
 	</td>
-  </tr>
-  <tr>
-    <td align="center" bgcolor="#000000"><p>&nbsp;</p>
-      <p><font color="#FFFFFF" face="Arial, Helvetica, sans-serif">The flash workspace above can have any size. Any of the panels can be disabled from vs_login.php .
-	  <BR>You can also embed just <a href="video.php?n=<?=$n?>">plain video</a> or send mobile users without flash to a <a href="htmlchat.php?n=<?=$n?>">plain html external text chat interface</a>. </font></p>
-      <p><a href="http://www.videowhisper.com/?p=Live+Streaming">Video Whisper Live Streaming</a></p></td>
   </tr>
 </table>
 <p>&nbsp;</p>
