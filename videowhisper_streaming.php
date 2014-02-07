@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.4
+Version: 4.29.5
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -2184,7 +2184,11 @@ align="absmiddle" border="0">Start Broadcasting</a>
                 ?>loadstatus=1<?php
                 break;
 
-            case 'vw_logout':
+                case 'vw_logout':
+                echo strip_tags($_GET['message']);
+                break;
+                
+                case 'vw_logout':
                 ?>loggedout=1<?php
                 break;
 
@@ -2853,6 +2857,8 @@ EMBEDEND2;
                 sanV($private);
                 sanV($session);
                 if (!$room) exit;
+                
+                $message = strip_tags($messae,'<p><a><img><font><b><i><u>');
 
                 //generate same private room folder for both users
                 if ($private)
@@ -2906,6 +2912,10 @@ lt=last session time received from this script in (milliseconds)
                 sanV($u);
                 sanV($r);
                 sanV($m,0, 0);
+
+                $timeUsed = (int) $timeUsed;
+                $currentTime = (int) $currentTime;
+                $lastTime = (int) $lastTime;
 
                 //exit if no valid session name or room name
                 if (!$s) exit;
@@ -2996,6 +3006,8 @@ lt=last session time received from this script in (milliseconds)
 
                 //rtmp server notifies client disconnect here
                 $session = $_GET['s'];
+                sanV($session);
+                if (!$session) exit;
 
                 $options = get_option('VWliveStreamingOptions');
                 $dir=$options['uploadsPath'];
@@ -3013,6 +3025,8 @@ lt=last session time received from this script in (milliseconds)
 
                 //rtmp server should check login like rtmp_login.php?s=$session
                 $session = $_GET['s'];
+                sanV($session);
+                if (!$session) exit;
 
                 $options = get_option('VWliveStreamingOptions');
                 $dir=$options['uploadsPath'];
@@ -3058,7 +3072,11 @@ cam, mic = 0 none, 1 disabled, 2 enabled
                 sanV($s);
                 sanV($u);
                 sanV($r);
-                sanV($m,0, 0);
+                sanV($m,0);
+                
+                $timeUsed = (int) $timeUsed;
+                $currentTime = (int) $currentTime;
+                $lastTime = (int) $lastTime;
 
                 //exit if no valid session name or room name
                 if (!$s) exit;
