@@ -2184,7 +2184,7 @@ align="absmiddle" border="0">Start Broadcasting</a>
                 ?>loadstatus=1<?php
                 break;
 
-                case 'vw_logout':
+                case 'lb_logout':
                 echo strip_tags($_GET['message']);
                 break;
                 
