@@ -4,7 +4,13 @@ $n=$_GET["n"];
 include("incsan.php");
 sanV($n);
 
-$swfurl="live_watch.swf?n=".urlencode($n);
+include_once("../../../../wp-config.php");
+            $swfurl = plugin_dir_url(__FILE__) . "live_watch.swf?n=" . urlencode($stream);
+            $swfurl .= "&prefix=" . urlencode(admin_url() . 'admin-ajax.php?action=vwls&task=');
+            $swfurl .= '&extension='.urlencode('_none_');
+            $swfurl .= '&ws_res=' . urlencode( plugin_dir_url(__FILE__) . '');
+
+
 
 $bgcolor="#333333";
 ?><style type="text/css">

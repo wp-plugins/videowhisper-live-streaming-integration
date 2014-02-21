@@ -5,11 +5,18 @@
 </head>
 <body bgcolor="<?=$bgcolor?>">
 <?php
+
+include_once("../../../../wp-config.php");
+
 $stream = $_GET['n'];
 include("incsan.php");
 sanV($stream);
 
-$swfurl="live_broadcast.swf?room=" . $stream;
+          	$swfurl = plugin_dir_url(__FILE__) . "live_broadcast.swf?room=" . urlencode($stream);
+            $swfurl .= "&prefix=" . urlencode(admin_url() . 'admin-ajax.php?action=vwls&task=');
+            $swfurl .= '&extension='.urlencode('_none_');
+            $swfurl .= '&ws_res=' . urlencode( plugin_dir_url(__FILE__) . '');
+            
 $bgcolor="#333333";
 include("flash_detect.php");
 ?>
@@ -91,7 +98,6 @@ a {
 <?php
 if ($stream)
 {
-include_once("../../../../wp-config.php");
 $options = get_option('VWliveStreamingOptions');
 
 $userName =  $options['userName']; if (!$userName) $userName='user_nicename';

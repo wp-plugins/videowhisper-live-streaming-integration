@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.5
+Version: 4.29.6
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -245,6 +245,17 @@ if (!class_exists("VWliveStreaming"))
         }
 
 
+			function roomURL($room)
+			{
+			    global $wpdb;
+			    
+                    $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . sanitize_file_name($room) . "' and post_type='channel' LIMIT 0,1" );
+
+                    if ($postID) return get_post_permalink($postID);
+                    else return plugin_dir_url(__FILE__) . 'ls/channel.php?n=' . urlencode(sanitize_file_name($room));	
+
+			}
+			
         function shortcode_manage()
         {
 
@@ -257,7 +268,8 @@ if (!class_exists("VWliveStreaming"))
             }
 
             //can user create room?
-            $options = get_option('VWliveStreamingOptions');
+            $options = VWliveStreaming::getAdminOptions();
+
             $maxChannels = $options['maxChannels'];
 
             $canBroadcast = $options['canBroadcast'];
@@ -297,7 +309,21 @@ if (!class_exists("VWliveStreaming"))
                 return $htmlCode;
             }
 
-            $this_page    =   "http://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+function getCurrentURL()
+{
+	$currentURL = (@$_SERVER["HTTPS"] == "on") ? "https://" : "http://";
+	$currentURL .= $_SERVER["SERVER_NAME"];
+
+	if($_SERVER["SERVER_PORT"] != "80" && $_SERVER["SERVER_PORT"] != "443")
+	{
+    	$currentURL .= ":".$_SERVER["SERVER_PORT"];
+	} 
+
+        $currentURL .= $_SERVER["REQUEST_URI"];
+	return $currentURL;
+}
+
+            $this_page    =   getCurrentURL();
             $channels_count = count_user_posts_by_type($current_user->ID, 'channel');
 
             //setup
@@ -1100,7 +1126,7 @@ HTMLCODE;
                 return sprintf("%d%s%d%s%d%s", floor($t/86400), 'd ', ($t/3600)%24,'h ', ($t/60)%60,'m ago');
             }
 
-            $options = VWliveStreaming::getAdminOptions();
+            $options = get_option('VWliveStreamingOptions');
 
             $perPage = (int) $_GET['pp'];
             if (!$perPage) $perPage = $options['perPage'];
@@ -1125,12 +1151,8 @@ HTMLCODE;
                     echo '<div class="videowhisperTime">' . format_age(time() -  $item->edate) . '</div>';
 
                     $thumbFilename = "$dir/" . $item->name . ".jpg";
-
-                    $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $item->name . "' and post_type='channel' LIMIT 0,1" );
-
-                    if ($postID) $url = get_post_permalink($postID);
-                    else $url = plugin_dir_url(__FILE__) . 'ls/channel.php?n=' . urlencode($item->name);
-
+                    
+                    $url = VWliveStreaming::roomURL($item->name);
 
                     if (file_exists($thumbFilename)) echo '<a href="' . $url . '"><IMG src="' . path2url($thumbFilename) . '" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
                     else echo '<a href="' . $url . '"><IMG SRC="' . plugin_dir_url(__FILE__). 'screenshot-3.jpg" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
@@ -1426,8 +1448,8 @@ Streaming Software</a>.</p></div>';
                     get_currentuserinfo();
                     if ($current_user->$userName) $username = $current_user->$userName;
                     $username = sanitize_file_name($username);
-                    ?><a href="<?php echo $root_url; ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/?n=<?php echo $username ?>"><img src="<?php echo $root_url;
-                    ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/templates/live/i_webcam.png" align="absmiddle" border="0">Video Broadcast</a>
+                    ?><a href="<?php echo plugin_dir_url(__FILE__); ?>ls/?n=<?php echo $username ?>"><img src="<?php echo plugin_dir_url(__FILE__);
+                    ?>templates/live/i_webcam.png" align="absmiddle" border="0">Video Broadcast</a>
 	<?php
                 }
 
@@ -2808,8 +2830,11 @@ layoutEND;
                 $swfurlp .= '&extension='.urlencode('_none_');
                 $swfurlp .= '&ws_res=' . urlencode( plugin_dir_url(__FILE__) . 'ls/');
 
-                $linkcode=$base."channel.php?n=".urlencode($username);
+                $linkcode= VWliveStreaming::roomURL($username);
+                
                 $imagecode=path2url($uploadsPath."/_snapshots/".urlencode($username).".jpg");
+                
+                $base = plugin_dir_url(__FILE__) . "ls/";
                 $swfurl= plugin_dir_url(__FILE__) . "ls/live_watch.swf?n=".urlencode($username) . $swfurlp;
                 $swfurl2=plugin_dir_url(__FILE__) . "ls/live_video.swf?n=".urlencode($username) . $swfurlp;
 
