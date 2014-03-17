@@ -1,10 +1,13 @@
 <head>
 <?php
-$n=$_GET["n"];
 include("incsan.php");
 sanV($n);
 
 include_once("../../../../wp-config.php");
+
+$stream=$_GET["n"];
+$stream = sanitize_file_name($stream);
+
             $swfurl = plugin_dir_url(__FILE__) . "live_watch.swf?n=" . urlencode($stream);
             $swfurl .= "&prefix=" . urlencode(admin_url() . 'admin-ajax.php?action=vwls&task=');
             $swfurl .= '&extension='.urlencode('_none_');

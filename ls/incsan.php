@@ -22,7 +22,7 @@ function sanV(&$var, $file=1, $html=1, $mysql=1) //sanitize variable depending o
 	{
 		$forbidden=array("'", "\"", "´", "`", "\\", "%");
 		foreach ($forbidden as $search)  $var=str_replace($search,"",$var);
-		$var=mysql_real_escape_string($var);
+		$var=mysql_escape_string($var);
 	}
 }
 ?>

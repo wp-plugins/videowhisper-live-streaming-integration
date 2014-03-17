@@ -5,9 +5,9 @@ Author URI: http://www.videowhisper.com
 Plugin Name: VideoWhisper Live Streaming Broadcast
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Donate link: http://www.videowhisper.com/?p=Invest
-Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, on air, chat, flash, fms, red5, wowza, audio, video chat, videochat, widget, plugin, media, av, livestream, station, channel, sidebar, webcam, cam, group, groups, tab, P2P
+Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, on air, chat, flash, fms, red5, wowza, audio, video chat, videochat, widget, plugin, media, av, livestream, station, channel, sidebar, webcam, cam, group, groups, tab, P2P, twitch, justin, ustream, stickam, iOS
 Requires at least: 2.7
-Tested up to: 3.8
+Tested up to: 3.8.1
 Stable tag: trunk
 
 The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages and other sites. 
@@ -21,6 +21,7 @@ VideoWhisper Live Streaming software integrates web applications to:
 Latest version includes:
 * codec and quality settings
 * iOS transcoding support for iPhone, iPad playback
+* automated detection of iOS
 * usage permissions by role, email, id, name
 * premium channels
 * limit broadcasting and watch time per channel
@@ -28,10 +29,13 @@ Latest version includes:
 * P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage
 * channel setup and management page in frontend
 * channel listings with live AJAX updates
+* external broadcaster/player support with special RTMP side
+* generate snapshots for external streams with special RTMP side
+* custom ads in chat
  
-Use this software for adding to your site, features like on justin tv, ustream tv, mogulus, livestream, stickam, blog tv, live yahoo or their clones and alternatives.  
+Use this software for adding to your site, features like on Twitch TV, Justin TV, UStream tv, Mogulus, LiveStream, Stickam, Blog tv, Live yahoo or their clones and alternatives.  
 
-This plugin uses the WordPress username to login existing users. If the user is not logged into WordPress a warning message is shown and the visitor can click that to get back to the main WordPress website for registration/login. Administrators can restrict access to broadcasting and watching to certain users.
+Administrators can restrict access to broadcasting and watching to certain users.
 
 Also includes a plugin that provides a linking widget. The widget also displays online broadcasters and their show names.
 
@@ -79,6 +83,10 @@ If your users want to broadcast their screen (when playing a game, using a progr
 More information, the latest updates, other plugins and non-WordPress editions can be found at http://www.videowhisper.com/ .
 
 == Changelog ==
+
+= 4.29.8 =
+* iOS detection, automated display of direct/transcoded HLS video 
+* external encoder authentication, status monitoring with special RTMP side
 
 = 4.27.4 =
 * Channel posts with frontend management and automated snapshot
