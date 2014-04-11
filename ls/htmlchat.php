@@ -31,13 +31,18 @@ function load(name, div) {
 	return false;
 }
 </SCRIPT>
-<title><?=$n?> Text Chat</title>
-</HEAD>
-<BODY>
 <?php
 $room = $_GET['n'];
 if (!$room) $room = $_POST['n'];
 
+include("incsan.php");
+sanV($room);
+
+?>
+<title><?=$room?>Text Chat</title>
+</HEAD>
+<BODY>
+<?php
 
 //do not allow access to other folders
 if ( strstr($room,"/") || strstr($room,"..") ) 
@@ -49,10 +54,6 @@ if ( strstr($room,"/") || strstr($room,"..") )
 $name = $_POST['name'];
 $message = $_POST['message'];
 
-
-//security
-include_once("incsan.php");
-sanV($room);
 sanV($name);
 sanV($message, 0);
 

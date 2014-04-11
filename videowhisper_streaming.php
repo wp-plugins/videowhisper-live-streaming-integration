@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.9
+Version: 4.29.10
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -493,12 +493,6 @@ if (!class_exists("VWliveStreaming"))
                 $newDescription = $channel->post_content;
                 $newName = $channel->post_title;
                 $newComments = $channel->comment_status;
-                
-                $commentsCode = '';
-                $commentsCode .= '<select id="newcomments" name="newcomments">';
-                $commentsCode .= '<option value="closed" ' . ($newComments=='closed'?'selected':'') . '>Closed</option>';
-                $commentsCode .= '<option value="open" ' . ($newComments=='open'?'selected':'') . '>Open</option>';
-                $commentsCode .= '</select>';
 
                 $cats = wp_get_post_categories( $editPost);
                 if (count($cats)) $newCat = array_pop($cats);
@@ -516,6 +510,13 @@ if (!class_exists("VWliveStreaming"))
             $nameField = 'hidden';
             $newNameL = $newName;
             }
+            
+                $commentsCode = '';
+                $commentsCode .= '<select id="newcomments" name="newcomments">';
+                $commentsCode .= '<option value="closed" ' . ($newComments=='closed'?'selected':'') . '>Closed</option>';
+                $commentsCode .= '<option value="open" ' . ($newComments=='open'?'selected':'') . '>Open</option>';
+                $commentsCode .= '</select>';
+                
 
             $categories = wp_dropdown_categories('show_count=1&echo=0&name=newcategory&hide_empty=0&selected=' . $newCat);
 
@@ -538,8 +539,8 @@ if (!class_exists("VWliveStreaming"))
 </script>
 
 
+<form method="post" action="$this_page" name="adminForm" class="w-actionbox">
 <h3>Setup Channel</h3>
-<form method="post" action="$this_page"  name="adminForm">
 <table class="g-input" width="500px">
 <tr><td>Name</td><td><input name="newname" type="$nameField" id="newname" value="$newName" size="20" maxlength="64" onChange="censorName()"/>$newNameL</td></tr>
 <tr><td>Description</td><td><textarea rows=3 name='description' id='description'>$newDescription</textarea></td></tr>
@@ -897,6 +898,29 @@ HTMLCODE;
         }
 
 
+        function rtmp_address($userID, $postID, $broadcaster, $session, $room)
+        {
+        
+         //?session&room&key&broadcaster&broadcasterid
+            
+         $options = get_option('VWliveStreamingOptions');
+         
+         
+         if ($broadcaster)
+         {
+            $key = md5('vw' . $options['webKey'] . $userID . $postID); 
+            return $options['rtmp_server'] . '?'. urlencode($session) .'&'. urlencode($room) .'&'. $key . '&1&' . $userID . '&videowhisper';
+         }   
+         else
+         {
+            $keyView = md5('vw' . $options['webKey']. $postID);
+            return $options['rtmp_server'] . '?'. urlencode('-name-') .'&'. urlencode($room) .'&'. $keyView . '&0' . '&videowhisper';
+         }
+         
+         return $options['rtmp_server'];
+         
+        }
+        
         function shortcode_external($atts)
         {
 
@@ -934,14 +958,10 @@ HTMLCODE;
                     $channel = get_post( $postID );
                     if ($channel->post_author != $current_user->ID) return "<div class='error'>Only owner can broadcast on own channel!</div>";
                 }
-            $key = md5('vw' . $options['webKey'] . $current_user->ID . $postID);
-            $keyView = md5('vw' . $options['webKey']. $postID);
 
-            //?session&room&key&broadcaster&broadcasterid
-            $rtmpAddress = $options['rtmp_server'] . '?'. urlencode($stream) .'&'. urlencode($stream) .'&'. $key . '&1&' . $current_user->ID . '&videowhisper';
-            $rtmpAddressView = $options['rtmp_server'] . '?'. urlencode('-name-') .'&'. urlencode($stream) .'&'. $keyView . '&0' . '&videowhisper';
-
-
+            $rtmpAddress = VWliveStreaming::rtmp_address($current_user->ID, $postID, true, $stream, $stream);
+            $rtmpAddressView = VWliveStreaming::rtmp_address($current_user->ID, $postID, false, $stream, $stream); 
+            
 $codeWatch = htmlspecialchars(do_shortcode("[videowhisper_watch channel=\"$stream\"]"));
 $roomLink = VWliveStreaming::roomURL($stream);
 
@@ -1699,7 +1719,7 @@ Software</a>.</p></div>';
                 'maxChannels' => '2',
                 'externalKeys' => '1',
                 'externalKeysTranscoder' => '1',
-                'rtmpStatus' => '-1',
+                'rtmpStatus' => '0',
 
 
                 'canWatch' => 'all',
@@ -2115,12 +2135,12 @@ if ($det) echo "detected ($outd)"; else echo "missing: please configure and inst
 <!--
 <h4>Session Status</h4>
 <select name="rtmpStatus" id="rtmpStatus">
-  <option value="-1" <?php echo $options['rtmpStatus']=='-1'?"":"selected"?>>Auto</option>
-  <option value="0" <?php echo $options['rtmpStatus']?"":"selected"?>>HTTP</option>
+  <option value="0" <?php echo $options['rtmpStatus']=='0'?"":"selected"?>>Auto</option>
   <option value="1" <?php echo $options['rtmpStatus']=='1'?"selected":""?>>RTMP</option>
 </select>
 <BR>Session status allows monitoring and controlling online users sessions.
-<BR>HTTP: Will monitor sessions based on requests from HTTP clients (VideoWhisper applications).
+<BR>Auto: Will monitor web sessions based on requests from HTTP clients (VideoWhisper web applications) and other clients by RTMP.
+<BR>RTMP: Will monitor all clients by RTMP, including web clients. Web monitoring is disabled.
 -->
 
 <h4>External Transcoder Keys</h4>
@@ -2577,6 +2597,10 @@ align="absmiddle" border="0">Start Broadcasting</a>
 
         function sessionUpdate($username='', $room='', $broadcaster=0, $type=1, $strict=1)
         {
+
+            //type 1=http, 2=rtmp
+            //strict = create new if not that type   
+            
             if (!$username) return;
             $ztime = time();
 
@@ -2771,23 +2795,15 @@ align="absmiddle" border="0">Start Broadcasting</a>
                 //esternal login GET u=user, p=password
 
                 $options = get_option('VWliveStreamingOptions');
-
                 $rtmp_server = $options['rtmp_server'];
                 $rtmp_amf = $options['rtmp_amf'];
                 $userName =  $options['userName']; if (!$userName) $userName='user_nicename';
+                
                 $canBroadcast = $options['canBroadcast'];
                 $broadcastList = $options['broadcastList'];
 
                 $tokenKey = $options['tokenKey'];
                 $webKey = $options['webKey'];
-
-                $serverRTMFP = $options['serverRTMFP'];
-                $p2pGroup = $options['p2pGroup'];
-                $supportRTMP = $options['supportRTMP'];
-                $supportP2P = $options['supportP2P'];
-                $alwaystRTMP = $options['alwaystRTMP'];
-                $alwaystP2P = $options['alwaystP2P'];
-                $disableBandwidthDetection = $options['disableBandwidthDetection'];
 
                 $loggedin=0;
                 $msg="";
@@ -2796,7 +2812,8 @@ align="absmiddle" border="0">Start Broadcasting</a>
                 $creds['user_login'] = $_GET['u'];
                 $creds['user_password'] = $_GET['p'];
                 $creds['remember'] = true;
-
+                
+                remove_all_actions('wp_login'); //disable redirects or other output
                 $current_user = wp_signon( $creds, false );
 
                 if( is_wp_error($current_user))
@@ -2816,67 +2833,61 @@ align="absmiddle" border="0">Start Broadcasting</a>
                 if ($current_user->$userName) $username=urlencode($current_user->$userName);
                 sanV($username);
 
+
+                if ($username)
+                {
                 switch ($canBroadcast)
                 {
+                
                 case "members":
-                    if ($username) $loggedin=1;
-                    else $msg=urlencode("<a href=\"/\">Please login first or register an account if you don't have one! Click here to return to website.</a>");
-                    break;
+                    $loggedin=1;
+                break;
+                
                 case "list";
-                    if ($username)
                         if (inList($username, $broadcastList)) $loggedin=1;
-                        else $msg=urlencode("<a href=\"/\">$username, you are not in the broadcasters list.</a>");
-                        else $msg=urlencode("<a href=\"/\">Please login first or register an account if you don't have one! Click here to return to website.</a>");
-                        break;
+                        else $msg .= urlencode("$username, you are not in the broadcasters list.");
+                    break;
                 }
+                
+                }else $msg .= urlencode("Login required to broadcast.");
 
-                //broadcaster
-                $userlabel="";
-                $room_name=$_GET['room_name'];
-                sanV($room_name);
-
-                if ($room_name&&$room_name!=$username)
+                if ($loggedin)
                 {
-                    $userlabel=$username;
-                    $username=$room_name;
-                    $room=$room_name;
+
+                       $args = array(
+                            'author'           => $current_user->ID,
+                            'orderby'          => 'post_date',
+                            'order'            => 'DESC',
+                            'post_type'        => 'channel',
+                        );
+            
+                        $channels = get_posts( $args );
+                        if (count($channels))
+                        {
+            
+                            foreach ($channels as $channel)
+                            {
+                                $username = $room = sanitize_file_name(get_the_title($channel->ID));
+                                $rtmp_server = VWliveStreaming::rtmp_address($current_user->ID, $channel->ID, true, $room, $room);
+                                break;
+                            }
+                            
+                            $canKick = 1;
+                            VWliveStreaming::webSessionSave($username, $canKick);
+                            VWliveStreaming::sessionUpdate($username, $room, 1, 2, 1);    
+                        }
+                        else
+                        {
+                            $msg .= urlencode("You don't have a channel to broadcast.");
+                            $loggedin = 0;
+                        }
+
+
                 }
-
-                $canKick = 1;
-                if ($loggedin)  //approve session for rtmp check
-                    {
-                    //this generates a session file record for rtmp login check
-                    sanV($username);
-
-                    if ($username)
-                    {
-                        $ztime=time();
-                        $info = "VideoWhisper=1&login=1&webKey=$webKey&start=$ztime&canKick=$canKick";
-
-                        $dir=$options['uploadsPath'];
-                        if (!file_exists($dir)) mkdir($dir);
-                        @chmod($dir, 0777);
-                        $dir.="/_sessions";
-                        if (!file_exists($dir)) mkdir($dir);
-                        @chmod($dir, 0777);
-
-                        $dfile = fopen($dir."/$username","w");
-                        fputs($dfile,$info);
-                        fclose($dfile);
-                        $debug = "$username-sessionCreated";
-                    }
-
-                }
+               
 
 
-                ?>firstParameter=fix&server=<?php echo $rtmp_server?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&serverRTMFP=<?php echo urlencode($serverRTMFP)?>&p2pGroup=<?php
-                echo $p2pGroup?>&supportRTMP=<?php echo $supportRTMP?>&supportP2P=<?php echo $supportP2P?>&alwaysRTMP=<?php echo $alwaysRTMP?>&alwaysP2P=<?php echo $alwaysP2P?>&disableBandwidthDetection=<?php echo
-                $disableBandwidthDetection?>&room=<?php echo $username?>&welcome=Welcome!&username=<?php echo $username?>&userlabel=<?php echo $userlabel?>&overLogo=<?php echo
-                urlencode($options['overLogo'])?>&overLink=<?php echo urlencode($options['overLink'])?>&userType=3&webserver=&msg=<?php echo $msg?>&loggedin=<?php echo
-                $loggedin?>&room_limit=&showTimer=1&showCredit=1&disconnectOnTimeout=1&camWidth=480&camHeight=360&camFPS=15&camBandwidth=40960&videoCodec=<?php echo $options['videoCodec']?>&codecProfile=<?php echo
-                $options['codecProfile']?>&codecLevel=<?php echo $options['codecLevel']?>&soundCodec=<?php echo $options['soundCodec']?>&soundQuality=<?php echo $options['soundQuality']?>&micRate=<?php echo
-                $options['micRate']?>&bufferLive=0.5&bufferFull=8&showCamSettings=1&advancedCamSettings=1&camMaxBandwidth=81920&configureSource=1&generateSnapshots=1&snapshotsTime=60000&onlyVideo=<?php echo
-                $options['onlyVideo']?>&noEmbeds=<?php echo $options['noEmbeds']?>&loadstatus=1&debug=<?php echo $debug?><?php
+                ?>firstParameter=fix&server=<?php echo urlencode($rtmp_server); ?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&room=<?php echo $room?>&welcome=Welcome!&username=<?php echo $username?>&userlabel=<?php echo $userlabel?>&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo urlencode($options['overLink'])?>&userType=3&msg=<?php echo $msg?>&loggedin=<?php echo $loggedin?>&loadstatus=1&debug=<?php echo $debug?><?php
                 break;
 
             case 'vw_extchat':
