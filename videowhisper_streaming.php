@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.10
+Version: 4.29.11
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -2789,8 +2789,52 @@ align="absmiddle" border="0">Start Broadcasting</a>
             case 'vw_logout':
                 ?>loggedout=1<?php
                 break;
+            
+            case 'vw_extregister':
 
+            
+$user_name = base64_decode($_GET['u']);            
+$password =  base64_decode($_GET['p']); 
+$user_email = base64_decode($_GET['e']); 
+if (!$_GET['videowhisper']) exit;
+          
+$msg = '';
+
+$user_name = sanitize_file_name($user_name);
+ 
+$loggedin=0;
+if (username_exists($user_name)) $msg .= __('Username is not available. Choose another!');
+if (email_exists($user_email)) $msg .= __('Email is already registered.'); 
+
+if (!is_email( $user_email )) $msg .= __('Email is not valid.');
+
+
+if ($msg=='' && $user_name && $user_email && $password)
+{
+	$user_id = wp_create_user( $user_name, $password, $user_email );
+	$loggedin = 1;
+	
+	//create channel
+	            $post = array(
+                        'post_content'   => sanitize_text_field($_POST['description']),
+                        'post_name'      => $user_name,
+                        'post_title'     => $user_name,
+                        'post_author'    => $user_id,
+                        'post_type'      => 'channel',
+                        'post_status'    => 'publish',
+                    );
+
+                    $postID = wp_insert_post($post);
+                    
+$msg .= __('Username and channel created: ') . $user_name ;                 
+} else $msg .= __('Could not register account.');
+
+?>firstParameter=fix&msg=<?php echo urlencode($msg); ?>&loggedin=<?php echo $loggedin;?><?php
+
+            break;
+            
             case 'vw_extlogin':
+
 
                 //esternal login GET u=user, p=password
 
@@ -2809,16 +2853,18 @@ align="absmiddle" border="0">Start Broadcasting</a>
                 $msg="";
 
                 $creds = array();
-                $creds['user_login'] = $_GET['u'];
-                $creds['user_password'] = $_GET['p'];
+                $creds['user_login'] = base64_decode($_GET['u']);
+                $creds['user_password'] = base64_decode($_GET['p']);
                 $creds['remember'] = true;
+                if (!$_GET['videowhisper']) exit;
+
                 
                 remove_all_actions('wp_login'); //disable redirects or other output
                 $current_user = wp_signon( $creds, false );
 
                 if( is_wp_error($current_user))
                 {
-                    $msg = urlencode("Login failed: " . $current_user->get_error_message()) ;
+                    $msg = urlencode($current_user->get_error_message()) ;
                     $debug = $msg;
                 }
                 else

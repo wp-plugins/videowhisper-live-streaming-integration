@@ -3,7 +3,8 @@
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
 <title>VideoWhisper Live Broadcast</title>
 </head>
-<body bgcolor="<?=$bgcolor?>">
+
+<body>
 <?php
 
 include_once("../../../../wp-config.php");
