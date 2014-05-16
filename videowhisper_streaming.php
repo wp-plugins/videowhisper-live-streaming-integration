@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.11
+Version: 4.29.14
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -137,7 +137,7 @@ if (!class_exists("VWliveStreaming"))
 		  `rdate` int(11) NOT NULL,
 		  `status` tinyint(4) NOT NULL,
 		  `type` tinyint(4) NOT NULL,
-		  `options` TEXT,
+		  `options` TEXT, 
 		  PRIMARY KEY  (`id`),
 		  KEY `name` (`name`),
 		  KEY `status` (`status`),
@@ -427,7 +427,7 @@ if (!class_exists("VWliveStreaming"))
                     $channelR = $wpdb->get_row($sql);
 
                     if (!$channelR)
-                        $sql="INSERT INTO `$table_name3` ( `owner`, `name`, `sdate`, `edate`, `rdate`,`status`, `type`) VALUES ('$username', '$room', $ztime, $ztime, $ztime, 1, $rtype)";
+                        $sql="INSERT INTO `$table_name3` ( `owner`, `name`, `sdate`, `edate`, `rdate`,`status`, `type`) VALUES ('$username', '$room', $ztime, $ztime, $ztime, 0, $rtype)";
                     elseif ($options['timeReset'] && $channelR->rdate < $ztime - $options['timeReset']*24*3600) //time to reset in days
                         $sql="UPDATE `$table_name3` set type=$rtype, rdate=$ztime, wtime=0, btime=0 where owner='$username' and name='$room'";
                     else
@@ -806,9 +806,12 @@ HTMLCODE;
 
             $dir = $options['uploadsPath']. "/_thumbs";
             $thumbFilename = "$dir/" . $stream . ".jpg";
+            $thumbUrl =  VWliveStreaming::path2url($thumbFilename);
+
+
 
             $htmlCode = <<<HTMLCODE
-<video id="videowhisper_hls_$stream" width="$width" height="$height" autobuffer autoplay controls poster="">
+<video id="videowhisper_hls_$stream" width="$width" height="$height" autobuffer autoplay controls poster="$thumbUrl">
  <source src="$streamURL" type='video/mp4'>
     <div class="fallback">
 	    <p>You must have an HTML5 capable browser with HLS support (Ex. Safari) to open this live stream: $streamURL</p>
@@ -1299,13 +1302,14 @@ HTMLCODE;
         }
 
 
-        function vwls_channels() //list channels
-            {
-
-            function path2url($file, $Protocol='http://')
+           function path2url($file, $Protocol='http://')
             {
                 return $Protocol.$_SERVER['HTTP_HOST'].str_replace($_SERVER['DOCUMENT_ROOT'], '', $file);
             }
+            
+        function vwls_channels() //list channels
+            {
+
 
             function format_age($t)
             {
@@ -1330,7 +1334,7 @@ HTMLCODE;
             $table_name3 = $wpdb->prefix . "vw_lsrooms";
 
 
-            $items =  $wpdb->get_results("SELECT * FROM `$table_name3` ORDER BY edate DESC LIMIT $offset, ". $perPage);
+            $items =  $wpdb->get_results("SELECT * FROM `$table_name3` WHERE status=1 ORDER BY edate DESC LIMIT $offset, ". $perPage);
             if ($items) foreach ($items as $item)
                 {
                     $age = format_age(time() -  $item->edate);
@@ -1346,7 +1350,7 @@ HTMLCODE;
                     $noCache = '';
                     if ($age=='LIVE') $noCache='?'.((time()/10)%100);
 
-                    if (file_exists($thumbFilename)) echo '<a href="' . $url . '"><IMG src="' . path2url($thumbFilename) . $noCache .'" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
+                    if (file_exists($thumbFilename)) echo '<a href="' . $url . '"><IMG src="' . VWliveStreaming::path2url($thumbFilename) . $noCache .'" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
                     else echo '<a href="' . $url . '"><IMG SRC="' . plugin_dir_url(__FILE__). 'screenshot-3.jpg" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
                     echo "</div>";
                 }
@@ -1495,7 +1499,7 @@ BODY
 
                 $admin_ajax = admin_url() . 'admin-ajax.php';
 
-                echo "<BR><a target='_blank' href='".$admin_ajax . "?action=vwls_trans&task=html5&stream=$stream'> Preview </a>";
+                echo "<BR><a target='_blank' href='".$admin_ajax . "?action=vwls_trans&task=html5&stream=$stream'> Preview </a> (open in Safari)";
                 break;
 
 
@@ -1538,7 +1542,7 @@ BODY
 ?>
 <p> Due to HTTP based live streaming technology limitations, video can have 15s or more latency. Use a browser with flash support for faster interactions based on RTMP. </p>
 <p>Most devices other than iOS, support regular flash playback for live streams.</p>
-</div>
+
 <style type="text/css">
 <!--
 BODY
@@ -2094,7 +2098,7 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 <BR> Path to latest FFMPEG. Required for transcoding of web based streams, generating snapshots for external broadcasting applications (requires <a href="http://www.videowhisper.com/?p=RTMP-Session-Control">rtmp session control</a> to notify plugin about these streams). 
 <?php
 echo "<BR>FFMPEG: ";
-$cmd ="/usr/local/bin/ffmpeg -codecs";
+$cmd =$options['ffmpegPath'] . ' -codecs';
 exec($cmd, $output, $returnvalue); 
 if ($returnvalue == 127)  echo "not detected: $cmd"; else echo "detected";
 
@@ -2447,7 +2451,18 @@ Settings for video subscribers that watch the live channels using watch or plain
                                 $thumbFilename = "$dir/$stream.jpg";
                                 imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
                                 imagejpeg($tmp, $thumbFilename, 95);
-                            } else echo "<div class='warning'>Snapshot missing!</div>";
+                                
+                    $sql="UPDATE `$table_name3` set status='1' WHERE name ='$stream'";
+                    $wpdb->query($sql);
+
+
+                            } else 
+                            {
+                            echo "<div class='warning'>Snapshot missing!</div>";
+                            $sql="UPDATE `$table_name3` set status='0' WHERE name ='$stream'";
+                            $wpdb->query($sql);
+
+                            }
                         }
 
                 if (!$options['anyChannels'] && !$options['userChannels'])
@@ -2777,6 +2792,11 @@ align="absmiddle" border="0">Start Broadcasting</a>
                     $thumbFilename = "$dir/$stream.jpg";
                     imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
                     imagejpeg($tmp, $thumbFilename, 95);
+                    
+                    //update room status to 1
+                    $table_name3 = $wpdb->prefix . "vw_lsrooms";
+                    $sql="UPDATE `$table_name3` set status='1' where name ='$stream'";
+                    $wpdb->query($sql);
 
                 }
                 ?>loadstatus=1<?php
@@ -3340,7 +3360,7 @@ layoutEND;
                     $channel = $wpdb->get_row($sql);
 
                     if (!$channel)
-                        $sql="INSERT INTO `$table_name3` ( `owner`, `name`, `sdate`, `edate`, `rdate`,`status`, `type`) VALUES ('$username', '$room', $ztime, $ztime, $ztime, 1, $rtype)";
+                        $sql="INSERT INTO `$table_name3` ( `owner`, `name`, `sdate`, `edate`, `rdate`,`status`, `type`) VALUES ('$username', '$room', $ztime, $ztime, $ztime, 0, $rtype)";
                     elseif ($options['timeReset'] && $channel->rdate < $ztime - $options['timeReset']*24*3600) //time to reset in days
                         $sql="UPDATE `$table_name3` set edate=$ztime, type=$rtype, rdate=$ztime, wtime=0, btime=0 where owner='$username' and name='$room'";
                     else
@@ -3354,14 +3374,12 @@ layoutEND;
            
                 if ($loggedin) VWliveStreaming::webSessionSave($username, 1); //approve session for rtmp check
 
-                function path2url($file, $Protocol='http://') {
-                    return $Protocol.$_SERVER['HTTP_HOST'].str_replace($_SERVER['DOCUMENT_ROOT'], '', $file);
-                }
+
                 $uploadsPath = $options['uploadsPath'];
                 if (!$uploadsPath) { $upload_dir = wp_upload_dir(); $uploadsPath = $upload_dir['basedir'] . '/vwls'; }
 
                 $day = date("y-M-j",time());
-                $chatlog_url = path2url($uploadsPath."/$room/Log$day.html");
+                $chatlog_url = VWliveStreaming::path2url($uploadsPath."/$room/Log$day.html");
 
                 $swfurlp = "&prefix=" . urlencode(admin_url() . 'admin-ajax.php?action=vwls&task=');
                 $swfurlp .= '&extension='.urlencode('_none_');
@@ -3369,7 +3387,7 @@ layoutEND;
 
                 $linkcode= VWliveStreaming::roomURL($username);
 
-                $imagecode=path2url($uploadsPath."/_snapshots/".urlencode($username).".jpg");
+                $imagecode=VWliveStreaming::path2url($uploadsPath."/_snapshots/".urlencode($username).".jpg");
 
                 $base = plugin_dir_url(__FILE__) . "ls/";
                 $swfurl= plugin_dir_url(__FILE__) . "ls/live_watch.swf?n=".urlencode($username) . $swfurlp;
@@ -3825,7 +3843,7 @@ lt=last session time received from this script in (milliseconds)
                     $channelR = $wpdb->get_row($sql);
 
                     if (!$channelR)
-                        $sql="INSERT INTO `$table_name3` ( `owner`, `name`, `sdate`, `edate`, `rdate`,`status`, `type`) VALUES ('$username', '$room', $ztime, $ztime, $ztime, 1, 1)";
+                        $sql="INSERT INTO `$table_name3` ( `owner`, `name`, `sdate`, `edate`, `rdate`,`status`, `type`) VALUES ('$username', '$room', $ztime, $ztime, $ztime, 0, 1)";
                     elseif ($options['timeReset'] && $channelR->rdate < $ztime - $options['timeReset']*24*3600) //time to reset in days
                         $sql="UPDATE `$table_name3` set edate=$ztime, type=1, rdate=$ztime, wtime=0, btime=0 where owner='$username' and name='$room'";
                     else
