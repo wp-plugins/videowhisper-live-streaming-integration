@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.14
+Version: 4.29.16
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -39,7 +39,7 @@ if (!class_exists("VWliveStreaming"))
 
             wp_register_sidebar_widget('liveStreamingWidget','VideoWhisper Streaming', array('VWliveStreaming', 'widget') );
 
-            add_filter("the_content", array('VWliveStreaming','channel_page'));
+            add_filter( "the_content", array('VWliveStreaming','channel_page'));
             add_filter( 'query_vars', array('VWliveStreaming','channel_query_vars'));
 
 
@@ -137,7 +137,7 @@ if (!class_exists("VWliveStreaming"))
 		  `rdate` int(11) NOT NULL,
 		  `status` tinyint(4) NOT NULL,
 		  `type` tinyint(4) NOT NULL,
-		  `options` TEXT, 
+		  `options` TEXT,
 		  PRIMARY KEY  (`id`),
 		  KEY `name` (`name`),
 		  KEY `status` (`status`),
@@ -259,16 +259,16 @@ if (!class_exists("VWliveStreaming"))
 
         }
 
+        function count_user_posts_by_type( $userid, $post_type = 'channel' )
+        {
+            global $wpdb;
+            $where = get_posts_by_author_sql( $post_type, true, $userid );
+            $count = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->posts $where" );
+            return apply_filters( 'get_usernumposts', $count, $userid );
+        }
+
         function shortcode_manage()
         {
-
-            function count_user_posts_by_type( $userid, $post_type = 'channel' )
-            {
-                global $wpdb;
-                $where = get_posts_by_author_sql( $post_type, true, $userid );
-                $count = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->posts $where" );
-                return apply_filters( 'get_usernumposts', $count, $userid );
-            }
 
             //can user create room?
             $options = get_option('VWliveStreamingOptions');
@@ -322,7 +322,7 @@ if (!class_exists("VWliveStreaming"))
                 {
                     $currentURL .= ":".$_SERVER["SERVER_PORT"];
                 }
-                
+
                 $uri_parts = explode('?', $_SERVER['REQUEST_URI'], 2);
 
                 $currentURL .= $uri_parts[0];
@@ -330,7 +330,7 @@ if (!class_exists("VWliveStreaming"))
             }
 
             $this_page    =   getCurrentURL();
-            $channels_count = count_user_posts_by_type($current_user->ID, 'channel');
+            $channels_count = VWliveStreaming::count_user_posts_by_type($current_user->ID, 'channel');
 
             //setup
             $postID = $_POST['editPost'];
@@ -368,7 +368,7 @@ if (!class_exists("VWliveStreaming"))
                     $postID = wp_insert_post($post);
                     if ($postID) wp_set_post_categories($postID, array($category));
 
-                    $channels_count = count_user_posts_by_type($current_user->ID, 'channel');
+                    $channels_count = VWliveStreaming::count_user_posts_by_type($current_user->ID, 'channel');
 
                 }
 
@@ -377,6 +377,8 @@ if (!class_exists("VWliveStreaming"))
 
             $premiumUser=0;
             if (VWliveStreaming::inList($userkeys, $options['premiumList'])) $premiumUser=1;
+
+            $htmlCode .= apply_filters("vw_ls_manage_channels_head", '');
 
             //list
             $htmlCode .= "<h3>My Channels ($channels_count/$maxChannels)</h3>";
@@ -398,7 +400,6 @@ if (!class_exists("VWliveStreaming"))
                 {
 
                     $stream = sanitize_file_name(get_the_title($channel->ID));
-
 
                     //update room
                     //setup/update channel, premium & time reset
@@ -435,37 +436,43 @@ if (!class_exists("VWliveStreaming"))
 
                     $wpdb->query($sql);
 
-
-
                     //update thumb
                     $dir = $options['uploadsPath']. "/_snapshots";
                     $thumbFilename = "$dir/$stream.jpg";
 
-                    if ( file_exists($thumbFilename) && (get_the_post_thumbnail( $postID ) == ''))
+                    //only if image exits
+                    if ( file_exists($thumbFilename))
                     {
-                        $wp_filetype = wp_check_filetype(basename($thumbFilename), null );
+                        if ( !get_post_thumbnail_id( $postID ) ) //insert
+                            {
+                            $wp_filetype = wp_check_filetype(basename($thumbFilename), null );
 
-                        $attachment = array(
-                            'guid' => $thumbFilename,
-                            'post_mime_type' => $wp_filetype['type'],
-                            'post_title' => preg_replace( '/\.[^.]+$/', '', basename( $thumbFilename, ".jpg" ) ),
-                            'post_content' => '',
-                            'post_status' => 'inherit'
-                        );
+                            $attachment = array(
+                                'guid' => $thumbFilename,
+                                'post_mime_type' => $wp_filetype['type'],
+                                'post_title' => preg_replace( '/\.[^.]+$/', '', basename( $thumbFilename, ".jpg" ) ),
+                                'post_content' => '',
+                                'post_status' => 'inherit'
+                            );
 
-                        $attach_id = wp_insert_attachment( $attachment, $thumbFilename, $postID );
+                            $attach_id = wp_insert_attachment( $attachment, $thumbFilename, $postID );
+                        }
+                        else //update
+                            {
+                            $attach_id = get_post_thumbnail_id($channel->ID );
+                            $thumbFilename = get_attached_file($attach_id);
+                        }
+
+                        //update
+                        $attach_data = wp_generate_attachment_metadata( $attach_id, $thumbFilename );
+                        wp_update_attachment_metadata( $attach_id, $attach_data );
                     }
-                    else
-                    {
-                        $attach_id = get_post_thumbnail_id($channel->ID );
-                        $thumbFilename = get_attached_file($attach_id);
-                    }
-
-                    $attach_data = wp_generate_attachment_metadata( $attach_id, $thumbFilename );
-                    wp_update_attachment_metadata( $attach_id, $attach_data );
 
 
-                    $htmlCode .= '<tr><td><a href="' . get_permalink($channel->ID) . '"><h4>' . $channel->post_title . '</h4>' .  get_the_post_thumbnail($channel->ID, 'medium') . '</a></td>';
+                    $htmlCode .= '<tr><td><a href="' . get_permalink($channel->ID) . '"><h4>' . $channel->post_title . '</h4>' .  get_the_post_thumbnail($channel->ID, 'medium') . '</a>';
+
+                    //filter to add content under snapshot
+                    $htmlCode .= '</td>';
                     $htmlCode .= '<td width="210px">';
                     $htmlCode .= '<BR><BR><a class="videowhisperButton g-btn type_red" href="' . get_permalink($channel->ID) . '/broadcast"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_webcam.png" align="absmiddle">Broadcast</a>';
                     if ($options['externalKeys']) $htmlCode .= '<BR> <a class="videowhisperButton g-btn type_pink" href="' . get_permalink($channel->ID) . '/external"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_webcam.png" align="absmiddle">External Apps</a>';
@@ -475,6 +482,8 @@ if (!class_exists("VWliveStreaming"))
                     $htmlCode .= '</td></tr>';
                 }
                 $htmlCode .= '</table>';
+                $htmlCode .= apply_filters("vw_ls_manage_channel", '', $channel->ID);
+
             }
             else
                 $htmlCode .= "<div class='warning'>You don't have any channels, yet!</div>";
@@ -502,21 +511,21 @@ if (!class_exists("VWliveStreaming"))
                 $editPost = -1;
                 $newName = sanitize_file_name($username);
                 if ($channels_count) $newName .= '_' . base_convert(time()-1225000000,10,36);
-            $nameField = 'text';
-            $newNameL = '';
+                $nameField = 'text';
+                $newNameL = '';
             }
-            else 
+            else
             {
-            $nameField = 'hidden';
-            $newNameL = $newName;
+                $nameField = 'hidden';
+                $newNameL = $newName;
             }
-            
-                $commentsCode = '';
-                $commentsCode .= '<select id="newcomments" name="newcomments">';
-                $commentsCode .= '<option value="closed" ' . ($newComments=='closed'?'selected':'') . '>Closed</option>';
-                $commentsCode .= '<option value="open" ' . ($newComments=='open'?'selected':'') . '>Open</option>';
-                $commentsCode .= '</select>';
-                
+
+            $commentsCode = '';
+            $commentsCode .= '<select id="newcomments" name="newcomments">';
+            $commentsCode .= '<option value="closed" ' . ($newComments=='closed'?'selected':'') . '>Closed</option>';
+            $commentsCode .= '<option value="open" ' . ($newComments=='open'?'selected':'') . '>Open</option>';
+            $commentsCode .= '</select>';
+
 
             $categories = wp_dropdown_categories('show_count=1&echo=0&name=newcategory&hide_empty=0&selected=' . $newCat);
 
@@ -553,6 +562,7 @@ if (!class_exists("VWliveStreaming"))
 
 HTMLCODE;
 
+            $htmlCode .= apply_filters("vw_ls_manage_channels_foot", '');
 
             return $htmlCode;
 
@@ -591,98 +601,9 @@ var aurl = '$ajaxurl';
 <div id="videowhisperChannels">
     Loading Channels...
 </div>
-
-<style type="text/css">
-
-.videowhisperChannel
-{
-position: relative;
-display:inline-block;
-
-	border:1px solid #dcdcdc;
-	background-color:#777;
-	padding: 0px;
-	margin: 2px;
-}
-
-.videowhisperChannel:hover {
-	background-color:#fff;
-}
-
-.videowhisperChannel IMG
-{
-padding: 0px;
-margin: 0px;
-border: 0px;
-}
-
-.videowhisperTitle
-{
-position: absolute;
-top:5px;
-left:5px;
-font-size: 20px;
-color: #FFF;
-text-shadow:1px 1px 1px #333;
-}
-
-.videowhisperTime
-{
-position: absolute;
-bottom:8px;
-left:5px;
-font-size: 15px;
-color: #FFF;
-text-shadow:1px 1px 1px #333;
-}
-
-.videowhisperButton {
-	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
-	-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
-	box-shadow:inset 0px 1px 0px 0px #ffffff;
-	-webkit-border-top-left-radius:6px;
-	-moz-border-radius-topleft:6px;
-	border-top-left-radius:6px;
-	-webkit-border-top-right-radius:6px;
-	-moz-border-radius-topright:6px;
-	border-top-right-radius:6px;
-	-webkit-border-bottom-right-radius:6px;
-	-moz-border-radius-bottomright:6px;
-	border-bottom-right-radius:6px;
-	-webkit-border-bottom-left-radius:6px;
-	-moz-border-radius-bottomleft:6px;
-	border-bottom-left-radius:6px;
-	text-indent:0;
-	border:1px solid #dcdcdc;
-	display:inline-block;
-	color:#666666;
-	font-family:Verdana;
-	font-size:15px;
-	font-weight:bold;
-	font-style:normal;
-	height:50px;
-	line-height:50px;
-	width:200px;
-	text-decoration:none;
-	text-align:center;
-	text-shadow:1px 1px 0px #ffffff;
-	background-color:#e9e9e9;
-
-}
-
-.videowhisperButton:hover {
-	background-color:#f9f9f9;
-}
-
-.videowhisperButton:active {
-	position:relative;
-	top:1px;
-}
-
-
-</style>
-
 HTMLCODE;
+
+            $htmlCode .= html_entity_decode(stripslashes($options['customCSS']));
 
             return $htmlCode;
         }
@@ -734,12 +655,12 @@ HTMLCODE;
                 return "Watch Error: Missing channel name!";
             }
 
-//HLS if iOS detected
-$agent = $_SERVER['HTTP_USER_AGENT'];
-if( strstr($agent,'iPhone') || strstr($agent,'iPod') || strstr($agent,'iPad'))
-return do_shortcode("[videowhisper_hls channel=\"$stream\"]");
+            //HLS if iOS detected
+            $agent = $_SERVER['HTTP_USER_AGENT'];
+            if( strstr($agent,'iPhone') || strstr($agent,'iPod') || strstr($agent,'iPad'))
+                return do_shortcode("[videowhisper_hls channel=\"$stream\"]");
 
-$afterCode = <<<HTMLCODE
+            $afterCode = <<<HTMLCODE
 <br style="clear:both" />
 
 <style type="text/css">
@@ -789,9 +710,9 @@ HTMLCODE;
 
             global $wpdb;
             $table_name = $wpdb->prefix . "vw_sessions";
-            
+
             $cnd = '';
-            if ($strict) $cnd = " AND `type`='$type'"; 
+            if ($strict) $cnd = " AND `type`='$type'";
 
 
             //transcoder active for this channel?
@@ -799,7 +720,7 @@ HTMLCODE;
             $session = $wpdb->get_row($sqlS);
             if ($session) $streamName = "i_$stream";
             else $streamName = $stream;
-            
+
             $streamURL = "${options['httpstreamer']}$streamName/playlist.m3u8";
 
 
@@ -825,7 +746,7 @@ HTMLCODE;
 
         function html_video($stream, $width = "100%", $height = '360px')
         {
-  
+
             $stream = sanitize_file_name($stream);
 
             $swfurl = plugin_dir_url(__FILE__) . "ls/live_video.swf?n=" . urlencode($stream);
@@ -854,7 +775,7 @@ HTMLCODE;
             if (is_single())
                 if (get_post_type( get_the_ID() ) == 'channel') $stream = get_the_title(get_the_ID());
 
-            $options = get_option('VWliveStreamingOptions');
+                $options = get_option('VWliveStreamingOptions');
 
             $atts = shortcode_atts(array('channel' => $stream, 'width' => '480px', 'height' => '360px'), $atts, 'videowhisper_video');
 
@@ -873,12 +794,12 @@ HTMLCODE;
                 return "Watch Video Error: Missing channel name!";
             }
 
-//HLS if iOS detected
-$agent = $_SERVER['HTTP_USER_AGENT'];
-if( strstr($agent,'iPhone') || strstr($agent,'iPod') || strstr($agent,'iPad'))
-return do_shortcode("[videowhisper_hls channel=\"$stream\" width=\"$width\" height=\"$height\"]");
+            //HLS if iOS detected
+            $agent = $_SERVER['HTTP_USER_AGENT'];
+            if( strstr($agent,'iPhone') || strstr($agent,'iPod') || strstr($agent,'iPad'))
+                return do_shortcode("[videowhisper_hls channel=\"$stream\" width=\"$width\" height=\"$height\"]");
 
-$afterCode = <<<HTMLCODE
+            $afterCode = <<<HTMLCODE
 <br style="clear:both" />
 
 <style type="text/css">
@@ -903,27 +824,27 @@ HTMLCODE;
 
         function rtmp_address($userID, $postID, $broadcaster, $session, $room)
         {
-        
-         //?session&room&key&broadcaster&broadcasterid
-            
-         $options = get_option('VWliveStreamingOptions');
-         
-         
-         if ($broadcaster)
-         {
-            $key = md5('vw' . $options['webKey'] . $userID . $postID); 
-            return $options['rtmp_server'] . '?'. urlencode($session) .'&'. urlencode($room) .'&'. $key . '&1&' . $userID . '&videowhisper';
-         }   
-         else
-         {
-            $keyView = md5('vw' . $options['webKey']. $postID);
-            return $options['rtmp_server'] . '?'. urlencode('-name-') .'&'. urlencode($room) .'&'. $keyView . '&0' . '&videowhisper';
-         }
-         
-         return $options['rtmp_server'];
-         
+
+            //?session&room&key&broadcaster&broadcasterid
+
+            $options = get_option('VWliveStreamingOptions');
+
+
+            if ($broadcaster)
+            {
+                $key = md5('vw' . $options['webKey'] . $userID . $postID);
+                return $options['rtmp_server'] . '?'. urlencode($session) .'&'. urlencode($room) .'&'. $key . '&1&' . $userID . '&videowhisper';
+            }
+            else
+            {
+                $keyView = md5('vw' . $options['webKey']. $postID);
+                return $options['rtmp_server'] . '?'. urlencode('-name-') .'&'. urlencode($room) .'&'. $keyView . '&0' . '&videowhisper';
+            }
+
+            return $options['rtmp_server'];
+
         }
-        
+
         function shortcode_external($atts)
         {
 
@@ -963,12 +884,12 @@ HTMLCODE;
                 }
 
             $rtmpAddress = VWliveStreaming::rtmp_address($current_user->ID, $postID, true, $stream, $stream);
-            $rtmpAddressView = VWliveStreaming::rtmp_address($current_user->ID, $postID, false, $stream, $stream); 
-            
-$codeWatch = htmlspecialchars(do_shortcode("[videowhisper_watch channel=\"$stream\"]"));
-$roomLink = VWliveStreaming::roomURL($stream);
+            $rtmpAddressView = VWliveStreaming::rtmp_address($current_user->ID, $postID, false, $stream, $stream);
 
-$htmlCode = <<<HTMLCODE
+            $codeWatch = htmlspecialchars(do_shortcode("[videowhisper_watch channel=\"$stream\"]"));
+            $roomLink = VWliveStreaming::roomURL($stream);
+
+            $htmlCode = <<<HTMLCODE
 <h3>Broadcast Video</h3>
 <div class="info w-actionbox color_alternate">
 <p>RTMP Address:<BR><I>$rtmpAddress</I></p>
@@ -1200,10 +1121,10 @@ HTMLCODE;
             elseif( array_key_exists( 'hls' , $wp_query->query_vars ) )
                 $addCode = "" . '[videowhisper_hls]';
             elseif( array_key_exists( 'external' , $wp_query->query_vars ) )
-                {
+            {
                 $addCode = "" . '[videowhisper_external]';
                 $content = "";
-                }
+            }
             else $addCode = "" . '[videowhisper_watch]';
 
             //set thumb
@@ -1211,8 +1132,8 @@ HTMLCODE;
             $dir = $options['uploadsPath']. "/_snapshots";
             $thumbFilename = "$dir/$stream.jpg";
 
-            //only if missing
-            if ( file_exists($thumbFilename) && (get_the_post_thumbnail( $postID ) == ''))
+            //only if file exists and missing post thumb
+            if ( file_exists($thumbFilename) && !get_post_thumbnail_id( $postID ))
             {
                 $wp_filetype = wp_check_filetype(basename($thumbFilename), null );
 
@@ -1288,7 +1209,7 @@ HTMLCODE;
                 'has_archive'         => true,
                 'exclude_from_search' => false,
                 'publicly_queryable'  => true,
-                'capability_type'     => 'page',
+                'capability_type'     => 'post',
             );
             register_post_type( 'channel', $args );
 
@@ -1302,11 +1223,11 @@ HTMLCODE;
         }
 
 
-           function path2url($file, $Protocol='http://')
-            {
-                return $Protocol.$_SERVER['HTTP_HOST'].str_replace($_SERVER['DOCUMENT_ROOT'], '', $file);
-            }
-            
+        function path2url($file, $Protocol='http://')
+        {
+            return $Protocol.$_SERVER['HTTP_HOST'].str_replace($_SERVER['DOCUMENT_ROOT'], '', $file);
+        }
+
         function vwls_channels() //list channels
             {
 
@@ -1338,7 +1259,7 @@ HTMLCODE;
             if ($items) foreach ($items as $item)
                 {
                     $age = format_age(time() -  $item->edate);
-                    
+
                     echo '<div class="videowhisperChannel">';
                     echo '<div class="videowhisperTitle">' . $item->name. '</div>';
                     echo '<div class="videowhisperTime">' . $age . '</div>';
@@ -1346,7 +1267,7 @@ HTMLCODE;
                     $thumbFilename = "$dir/" . $item->name . ".jpg";
 
                     $url = VWliveStreaming::roomURL($item->name);
-                    
+
                     $noCache = '';
                     if ($age=='LIVE') $noCache='?'.((time()/10)%100);
 
@@ -1358,9 +1279,9 @@ HTMLCODE;
             $ajaxurl = admin_url() . 'admin-ajax.php?action=vwls_channels&pp='.$perPage;
 
             echo "<BR>";
-            if ($page>0) echo ' <a class="videowhisperButton" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page-1). '\'; loadChannels();">Previous</a> ';
+            if ($page>0) echo ' <a class="videowhisperButton g-btn type_secondary" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page-1). '\'; loadChannels();">Previous</a> ';
 
-            if (count($items) == $perPage) echo ' <a class="videowhisperButton" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page+1). '\'; loadChannels();">Next</a> ';
+            if (count($items) == $perPage) echo ' <a class="videowhisperButton g-btn type_secondary" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page+1). '\'; loadChannels();">Next</a> ';
 
 
             die;
@@ -1828,8 +1749,55 @@ Software</a>.</p></div>';
 <t text="Apply Settings" translation="Apply Settings"/>
 <t text="Very High" translation="Very High"/>',
 
-'customCSS' => <<<HTMLCODE
+                'customCSS' => <<<HTMLCODE
 <style type="text/css">
+
+.videowhisperChannel
+{
+position: relative;
+display:inline-block;
+
+	border:1px solid #aaa;
+	background-color:#777;
+	padding: 0px;
+	margin: 2px;
+
+	width: 240px;
+    height: 180px;
+}
+
+.videowhisperChannel:hover {
+	border:1px solid #fff;
+}
+
+.videowhisperChannel IMG
+{
+padding: 0px;
+margin: 0px;
+border: 0px;
+}
+
+.videowhisperTitle
+{
+position: absolute;
+top:5px;
+left:5px;
+font-size: 20px;
+color: #FFF;
+text-shadow:1px 1px 1px #333;
+}
+
+.videowhisperTime
+{
+position: absolute;
+bottom:8px;
+left:5px;
+font-size: 15px;
+color: #FFF;
+text-shadow:1px 1px 1px #333;
+}
+
+
 .videowhisperButton {
 	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
 	-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
@@ -1872,10 +1840,20 @@ Software</a>.</p></div>';
 	position:relative;
 	top:1px;
 }
+
+td {
+    padding: 4px;
+}
+
+table, .videowhisperTable {
+    border-spacing: 4px;
+    border-collapse: separate;
+}
+
 </style>
 
 HTMLCODE
-,
+                ,
                 'uploadsPath' => $upload_dir['basedir'] . '/vwls',
 
                 'tokenKey' => 'VideoWhisper',
@@ -1956,11 +1934,11 @@ HTMLCODE
                 $username = sanitize_file_name($username);
 
 
-   			$options['translationCode'] = htmlentities(stripslashes($options['translationCode']));
-               $options['adsCode'] = htmlentities(stripslashes($options['adsCode']));
-               $options['customCSS'] = htmlentities(stripslashes($options['customCSS']));
+                $options['translationCode'] = htmlentities(stripslashes($options['translationCode']));
+                $options['adsCode'] = htmlentities(stripslashes($options['adsCode']));
+                $options['customCSS'] = htmlentities(stripslashes($options['customCSS']));
 
-   			
+
 ?>
 <h3>General Integration Settings</h3>
 <h4>Username</h4>
@@ -2020,17 +1998,17 @@ align="absmiddle" border="0"><?php echo $broadcast_url . urlencode($username); ?
 <BR>Setup adsInterval in milliseconds (0 to disable ad calls).
 
 <h4>Chat Advertising Content</h4>
-<textarea name="adsCode" id="adsCode" cols="64" rows="8"><?=$options['adsCode']?></textarea>
+<textarea name="adsCode" id="adsCode" cols="64" rows="8"><?php echo $options['adsCode']?></textarea>
 <br>Shows from time to time in chat, if internal 'ads' server is enabled.
 
 <h4>Translation Code</h4>
-<textarea name="translationCode" id="translationCode" cols="64" rows="5"><?=$options['translationCode']?></textarea>
+<textarea name="translationCode" id="translationCode" cols="64" rows="5"><?php echo $options['translationCode']?></textarea>
 <br>Generate by writing and sending "/videowhisper translation" in chat (contains xml tags with text and translation attributes). Texts are added to list only after being shown once in interface. If any texts don't show up in generated list you can manually add new entries for these. Same translation file is used for interfaces so setting should cumulate all translations.
 
 <h4>Custom CSS</h4>
-<textarea name="customCSS" id="customCSS" cols="64" rows="5"><?=$options['customCSS']?></textarea>
-<BR>Used in elements added by this plugin.
-               
+<textarea name="customCSS" id="customCSS" cols="64" rows="5"><?php echo $options['customCSS']?></textarea>
+<BR>Used in elements added by this plugin. Include &lt;style type=&quot;text/css&quot;&gt; &lt;/style&gt; container.
+
 <h4>Page for Management</h4>
 <p>Add channel management page (Page ID <a href='post.php?post=<?php echo get_option("vwls_page_manage"); ?>&action=edit'><?php echo get_option("vwls_page_manage"); ?></a>) with shortcode [videowhisper_channel_manage]</p>
 <select name="disablePage" id="disablePage">
@@ -2095,22 +2073,22 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 
 <h4>FFMPEG Path</h4>
 <input name="ffmpegPath" type="text" id="ffmpegPath" size="100" maxlength="256" value="<?php echo $options['ffmpegPath']?>"/>
-<BR> Path to latest FFMPEG. Required for transcoding of web based streams, generating snapshots for external broadcasting applications (requires <a href="http://www.videowhisper.com/?p=RTMP-Session-Control">rtmp session control</a> to notify plugin about these streams). 
+<BR> Path to latest FFMPEG. Required for transcoding of web based streams, generating snapshots for external broadcasting applications (requires <a href="http://www.videowhisper.com/?p=RTMP-Session-Control">rtmp session control</a> to notify plugin about these streams).
 <?php
-echo "<BR>FFMPEG: ";
-$cmd =$options['ffmpegPath'] . ' -codecs';
-exec($cmd, $output, $returnvalue); 
-if ($returnvalue == 127)  echo "not detected: $cmd"; else echo "detected";
+                echo "<BR>FFMPEG: ";
+                $cmd =$options['ffmpegPath'] . ' -codecs';
+                exec($cmd, $output, $returnvalue);
+                if ($returnvalue == 127)  echo "not detected: $cmd"; else echo "detected";
 
-//detect codecs
-if ($output) if (count($output)) 
-foreach (array('h264','faac','speex', 'nellymoser') as $cod) 
-{
-$det=0; $outd="";
-echo "<BR>$cod codec: ";
-foreach ($output as $outp) if (strstr($outp,$cod)) { $det=1; $outd=$outp; };
-if ($det) echo "detected ($outd)"; else echo "missing: please configure and install ffmpeg with $cod";
-}
+                //detect codecs
+                if ($output) if (count($output))
+                        foreach (array('h264','faac','speex', 'nellymoser') as $cod)
+                        {
+                            $det=0; $outd="";
+                            echo "<BR>$cod codec: ";
+                            foreach ($output as $outp) if (strstr($outp,$cod)) { $det=1; $outd=$outp; };
+                            if ($det) echo "detected ($outd)"; else echo "missing: please configure and install ffmpeg with $cod";
+                        }
 ?>
 
 <h4>Disable Bandwidth Detection</h4>
@@ -2128,7 +2106,7 @@ if ($det) echo "detected ($outd)"; else echo "missing: please configure and inst
 <input name="webKey" type="text" id="webKey" size="32" maxlength="64" value="<?php echo $options['webKey']?>"/>
 <BR>A web key can be used for <a href="http://www.videochat-scripts.com/videowhisper-rtmp-web-authetication-check/">VideoWhisper RTMP Web Session Check</a>.
 <?php
-                $admin_ajax = admin_url() . 'admin-ajax.php';
+                    $admin_ajax = admin_url() . 'admin-ajax.php';
 
                 echo "<BR>webLogin:  ". htmlentities($admin_ajax."?action=vwls&amp;task=rtmp_login&amp;s=");
                 echo "<BR>webLogout: ". htmlentities($admin_ajax."?action=vwls&amp;task=rtmp_logout&amp;s=");
@@ -2152,7 +2130,7 @@ if ($det) echo "detected ($outd)"; else echo "missing: please configure and inst
   <option value="0" <?php echo $options['externalKeysTranscoder']?"":"selected"?>>No</option>
   <option value="1" <?php echo $options['externalKeysTranscoder']?"selected":""?>>Yes</option>
 </select>
-<BR>Direct authentication parameters will be used for transcoder, external stream thumbnails in case webLogin is enabled. RTMP server will pass these parameters to webLogin scripts for direct authentication without website access. 
+<BR>Direct authentication parameters will be used for transcoder, external stream thumbnails in case webLogin is enabled. RTMP server will pass these parameters to webLogin scripts for direct authentication without website access.
 
 <h4>RTMFP Address</h4>
 <p> Get your own independent RTMFP address by registering for a free <a href="https://www.adobe.com/cfusion/entitlement/index.cfm?e=cirrus" target="_blank">Adobe Cirrus developer key</a>. This is
@@ -2451,38 +2429,38 @@ Settings for video subscribers that watch the live channels using watch or plain
                                 $thumbFilename = "$dir/$stream.jpg";
                                 imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
                                 imagejpeg($tmp, $thumbFilename, 95);
-                                
-                    $sql="UPDATE `$table_name3` set status='1' WHERE name ='$stream'";
-                    $wpdb->query($sql);
+
+                                $sql="UPDATE `$table_name3` set status='1' WHERE name ='$stream'";
+                                $wpdb->query($sql);
 
 
-                            } else 
+                            } else
                             {
-                            echo "<div class='warning'>Snapshot missing!</div>";
-                            $sql="UPDATE `$table_name3` set status='0' WHERE name ='$stream'";
-                            $wpdb->query($sql);
+                                echo "<div class='warning'>Snapshot missing!</div>";
+                                $sql="UPDATE `$table_name3` set status='0' WHERE name ='$stream'";
+                                $wpdb->query($sql);
 
                             }
                         }
 
-                if (!$options['anyChannels'] && !$options['userChannels'])
-                {
-                
-                    global $wpdb;
-                    $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $item->name . "' and post_type='channel' LIMIT 0,1" );
-                    if (!$postID) 
-                    {
-                    $wpdb->query( "DELETE FROM `$table_name3` WHERE name ='".$item->name."'");
-                    echo "<br>DELETED: No channel post.";
-                    }
-                }
+                        if (!$options['anyChannels'] && !$options['userChannels'])
+                        {
+
+                            global $wpdb;
+                            $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $item->name . "' and post_type='channel' LIMIT 0,1" );
+                            if (!$postID)
+                            {
+                                $wpdb->query( "DELETE FROM `$table_name3` WHERE name ='".$item->name."'");
+                                echo "<br>DELETED: No channel post.";
+                            }
+                        }
 
 
                         echo "</th><td>".format_age(time() - $item->edate)."</td><td>".format_time($item->btime)."</td><td>".format_time($item->wtime)."</td><td>".format_age(time() - $item->rdate)."</td><td>".($item->type==2?"Premium":"Standard")."</td></tr>";
 
                         $broadcasting = $wpdb->get_results("SELECT * FROM `$table_name` WHERE room = '".$item->name."' ORDER BY edate DESC LIMIT 0, 100");
-                        if ($broadcasting) 
-                        foreach ($broadcasting as $broadcaster)
+                        if ($broadcasting)
+                            foreach ($broadcasting as $broadcaster)
                             {
                                 echo "<tr><td colspan='6'> - " . $broadcaster->username . " Type: " . $broadcaster->type . " Status: " . $broadcaster->status . " Started: " . format_age(time() -$broadcaster->sdate). "</td></tr>";
                             }
@@ -2491,7 +2469,7 @@ Settings for video subscribers that watch the live channels using watch or plain
 
                     }
                 echo "</table>";
-                ?>
+?>
                 <p>External players and encoders (if enabled) are not monitored or controlled by this plugin, unless special <a href="http://www.videowhisper.com/?p=RTMP-Session-Control">rtmp side session control</a> is available.</p>
                 <?php
                 break;
@@ -2614,27 +2592,27 @@ align="absmiddle" border="0">Start Broadcasting</a>
         {
 
             //type 1=http, 2=rtmp
-            //strict = create new if not that type   
-            
+            //strict = create new if not that type
+
             if (!$username) return;
             $ztime = time();
 
             global $wpdb;
             if ($broadcaster) $table_name = $wpdb->prefix . "vw_sessions";
             else $table_name = $wpdb->prefix . "vwlw_sessions";
-            
+
             $cnd = '';
-            if ($strict) $cnd = " AND `type`='$type'"; 
+            if ($strict) $cnd = " AND `type`='$type'";
 
             //online broadcasting session
             $sqlS = "SELECT * FROM $table_name where session='$username' and status='1' $cnd ORDER BY edate DESC LIMIT 0,1";
             $session = $wpdb->get_row($sqlS);
 
             if (!$session)
-            $sql="INSERT INTO `$table_name` ( `session`, `username`, `room`, `message`, `sdate`, `edate`, `status`, `type`) VALUES ('$username', '$username', '$room', '', $ztime, $ztime, 1, $type)";
+                $sql="INSERT INTO `$table_name` ( `session`, `username`, `room`, `message`, `sdate`, `edate`, `status`, `type`) VALUES ('$username', '$username', '$room', '', $ztime, $ztime, 1, $type)";
             else $sql="UPDATE `$table_name` set edate=$ztime, room='$room', username='$username' where id ='".$session->id."'";
             $wpdb->query($sql);
-                                   
+
             $exptime=$ztime-30;
             $sql="DELETE FROM `$table_name` WHERE edate < $exptime";
             $wpdb->query($sql);
@@ -2645,67 +2623,67 @@ align="absmiddle" border="0">Start Broadcasting</a>
 
         function rtmpSnapshot($session)
         {
-                $options = get_option('VWliveStreamingOptions');
+            $options = get_option('VWliveStreamingOptions');
 
-                $dir=$options['uploadsPath'];
-                if (!file_exists($dir)) mkdir($dir);
-                $dir .= "/_snapshots";
-                if (!file_exists($dir)) mkdir($dir);
+            $dir=$options['uploadsPath'];
+            if (!file_exists($dir)) mkdir($dir);
+            $dir .= "/_snapshots";
+            if (!file_exists($dir)) mkdir($dir);
 
-                $stream = $session->session;
-                $stream = sanitize_file_name($stream);
-                if (strstr($stream,'.php')) return;
-                if (!$stream) return;
-                
-                $filename = "$dir/$stream.jpg";
-                if (file_exists($filename)) if (time()-filemtime($filename) < 15) return; //do not update if fresh
-                
+            $stream = $session->session;
+            $stream = sanitize_file_name($stream);
+            if (strstr($stream,'.php')) return;
+            if (!$stream) return;
+
+            $filename = "$dir/$stream.jpg";
+            if (file_exists($filename)) if (time()-filemtime($filename) < 15) return; //do not update if fresh
+
                 $log_file = $filename . '.txt';
-                
-                global $wpdb;
-                $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $stream . "' and post_type='channel' LIMIT 0,1" );
 
-                if ($options['externalKeysTranscoder'])
-                {
-                    $keyView = md5('vw' . $options['webKey']. $postID);
-                    $rtmpAddressView = $options['rtmp_server'] . '?'. urlencode('ffmpegSnap_' . $stream) .'&'. urlencode($stream) .'&'. $keyView . '&0&videowhisper';
-                 }
-                    else $rtmpAddressView = $options['rtmp_server'];
+            global $wpdb;
+            $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $stream . "' and post_type='channel' LIMIT 0,1" );
 
-        $cmd = $options['ffmpegPath'] . " -rtmp_pageurl \"http://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'] . "\" -rtmp_swfurl \"http://".$_SERVER['HTTP_HOST']."\" -f image2 -vframes 1 \"$filename\" -y -i \"" . $rtmpAddressView ."/". $stream . "\" >&$log_file & ";
+            if ($options['externalKeysTranscoder'])
+            {
+                $keyView = md5('vw' . $options['webKey']. $postID);
+                $rtmpAddressView = $options['rtmp_server'] . '?'. urlencode('ffmpegSnap_' . $stream) .'&'. urlencode($stream) .'&'. $keyView . '&0&videowhisper';
+            }
+            else $rtmpAddressView = $options['rtmp_server'];
 
-                    //echo $cmd;
-                    exec($cmd, $output, $returnvalue);
-                    exec("echo '$cmd' >> $log_file.cmd", $output, $returnvalue);
-        
-                    if (!file_exists($filename)) return;
-         
-                    //generate thumb
-                    $thumbWidth = $options['thumbWidth'];
-                    $thumbHeight = $options['thumbHeight'];
+            $cmd = $options['ffmpegPath'] . " -rtmp_pageurl \"http://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'] . "\" -rtmp_swfurl \"http://".$_SERVER['HTTP_HOST']."\" -f image2 -vframes 1 \"$filename\" -y -i \"" . $rtmpAddressView ."/". $stream . "\" >&$log_file & ";
 
-                    $src = imagecreatefromjpeg($filename);
-                    list($width, $height) = getimagesize($filename);
-                    $tmp = imagecreatetruecolor($thumbWidth, $thumbHeight);
+            //echo $cmd;
+            exec($cmd, $output, $returnvalue);
+            exec("echo '$cmd' >> $log_file.cmd", $output, $returnvalue);
 
-                    $dir = $options['uploadsPath']. "/_thumbs";
-                    if (!file_exists($dir)) mkdir($dir);
+            if (!file_exists($filename)) return;
 
-                    $thumbFilename = "$dir/$stream.jpg";
-                    imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
-                    imagejpeg($tmp, $thumbFilename, 95);
+            //generate thumb
+            $thumbWidth = $options['thumbWidth'];
+            $thumbHeight = $options['thumbHeight'];
 
-            
+            $src = imagecreatefromjpeg($filename);
+            list($width, $height) = getimagesize($filename);
+            $tmp = imagecreatetruecolor($thumbWidth, $thumbHeight);
+
+            $dir = $options['uploadsPath']. "/_thumbs";
+            if (!file_exists($dir)) mkdir($dir);
+
+            $thumbFilename = "$dir/$stream.jpg";
+            imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
+            imagejpeg($tmp, $thumbFilename, 95);
+
+
         }
 
         function containsAny($name, $list)
         {
             $items = explode(',', $list);
             foreach ($items as $item) if (stristr($name, trim($item))) return $item;
-            
-            return 0;
+
+                return 0;
         }
-        
+
         //calls
         function vwls_calls()
         {
@@ -2792,7 +2770,7 @@ align="absmiddle" border="0">Start Broadcasting</a>
                     $thumbFilename = "$dir/$stream.jpg";
                     imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
                     imagejpeg($tmp, $thumbFilename, 95);
-                    
+
                     //update room status to 1
                     $table_name3 = $wpdb->prefix . "vw_lsrooms";
                     $sql="UPDATE `$table_name3` set status='1' where name ='$stream'";
@@ -2803,39 +2781,39 @@ align="absmiddle" border="0">Start Broadcasting</a>
                 break;
 
             case 'lb_logout':
-                echo strip_tags($_GET['message']);
+                wp_redirect( get_home_url() .'?msg='. urlencode($_GET['message']) );
                 break;
 
             case 'vw_logout':
                 ?>loggedout=1<?php
                 break;
-            
+
             case 'vw_extregister':
 
-            
-$user_name = base64_decode($_GET['u']);            
-$password =  base64_decode($_GET['p']); 
-$user_email = base64_decode($_GET['e']); 
-if (!$_GET['videowhisper']) exit;
-          
-$msg = '';
 
-$user_name = sanitize_file_name($user_name);
- 
-$loggedin=0;
-if (username_exists($user_name)) $msg .= __('Username is not available. Choose another!');
-if (email_exists($user_email)) $msg .= __('Email is already registered.'); 
+                $user_name = base64_decode($_GET['u']);
+                $password =  base64_decode($_GET['p']);
+                $user_email = base64_decode($_GET['e']);
+                if (!$_GET['videowhisper']) exit;
 
-if (!is_email( $user_email )) $msg .= __('Email is not valid.');
+                $msg = '';
+
+                $user_name = sanitize_file_name($user_name);
+
+                $loggedin=0;
+                if (username_exists($user_name)) $msg .= __('Username is not available. Choose another!');
+                if (email_exists($user_email)) $msg .= __('Email is already registered.');
+
+                if (!is_email( $user_email )) $msg .= __('Email is not valid.');
 
 
-if ($msg=='' && $user_name && $user_email && $password)
-{
-	$user_id = wp_create_user( $user_name, $password, $user_email );
-	$loggedin = 1;
-	
-	//create channel
-	            $post = array(
+                if ($msg=='' && $user_name && $user_email && $password)
+                {
+                    $user_id = wp_create_user( $user_name, $password, $user_email );
+                    $loggedin = 1;
+
+                    //create channel
+                    $post = array(
                         'post_content'   => sanitize_text_field($_POST['description']),
                         'post_name'      => $user_name,
                         'post_title'     => $user_name,
@@ -2845,14 +2823,14 @@ if ($msg=='' && $user_name && $user_email && $password)
                     );
 
                     $postID = wp_insert_post($post);
-                    
-$msg .= __('Username and channel created: ') . $user_name ;                 
-} else $msg .= __('Could not register account.');
 
-?>firstParameter=fix&msg=<?php echo urlencode($msg); ?>&loggedin=<?php echo $loggedin;?><?php
+                    $msg .= __('Username and channel created: ') . $user_name ;
+                } else $msg .= __('Could not register account.');
 
-            break;
-            
+                ?>firstParameter=fix&msg=<?php echo urlencode($msg); ?>&loggedin=<?php echo $loggedin;?><?php
+
+                break;
+
             case 'vw_extlogin':
 
 
@@ -2862,7 +2840,7 @@ $msg .= __('Username and channel created: ') . $user_name ;
                 $rtmp_server = $options['rtmp_server'];
                 $rtmp_amf = $options['rtmp_amf'];
                 $userName =  $options['userName']; if (!$userName) $userName='user_nicename';
-                
+
                 $canBroadcast = $options['canBroadcast'];
                 $broadcastList = $options['broadcastList'];
 
@@ -2878,7 +2856,7 @@ $msg .= __('Username and channel created: ') . $user_name ;
                 $creds['remember'] = true;
                 if (!$_GET['videowhisper']) exit;
 
-                
+
                 remove_all_actions('wp_login'); //disable redirects or other output
                 $current_user = wp_signon( $creds, false );
 
@@ -2902,55 +2880,55 @@ $msg .= __('Username and channel created: ') . $user_name ;
 
                 if ($username)
                 {
-                switch ($canBroadcast)
-                {
-                
-                case "members":
-                    $loggedin=1;
-                break;
-                
-                case "list";
+                    switch ($canBroadcast)
+                    {
+
+                    case "members":
+                        $loggedin=1;
+                        break;
+
+                    case "list";
                         if (inList($username, $broadcastList)) $loggedin=1;
                         else $msg .= urlencode("$username, you are not in the broadcasters list.");
-                    break;
-                }
-                
+                        break;
+                    }
+
                 }else $msg .= urlencode("Login required to broadcast.");
 
                 if ($loggedin)
                 {
 
-                       $args = array(
-                            'author'           => $current_user->ID,
-                            'orderby'          => 'post_date',
-                            'order'            => 'DESC',
-                            'post_type'        => 'channel',
-                        );
-            
-                        $channels = get_posts( $args );
-                        if (count($channels))
+                    $args = array(
+                        'author'           => $current_user->ID,
+                        'orderby'          => 'post_date',
+                        'order'            => 'DESC',
+                        'post_type'        => 'channel',
+                    );
+
+                    $channels = get_posts( $args );
+                    if (count($channels))
+                    {
+
+                        foreach ($channels as $channel)
                         {
-            
-                            foreach ($channels as $channel)
-                            {
-                                $username = $room = sanitize_file_name(get_the_title($channel->ID));
-                                $rtmp_server = VWliveStreaming::rtmp_address($current_user->ID, $channel->ID, true, $room, $room);
-                                break;
-                            }
-                            
-                            $canKick = 1;
-                            VWliveStreaming::webSessionSave($username, $canKick);
-                            VWliveStreaming::sessionUpdate($username, $room, 1, 2, 1);    
+                            $username = $room = sanitize_file_name(get_the_title($channel->ID));
+                            $rtmp_server = VWliveStreaming::rtmp_address($current_user->ID, $channel->ID, true, $room, $room);
+                            break;
                         }
-                        else
-                        {
-                            $msg .= urlencode("You don't have a channel to broadcast.");
-                            $loggedin = 0;
-                        }
+
+                        $canKick = 1;
+                        VWliveStreaming::webSessionSave($username, $canKick);
+                        VWliveStreaming::sessionUpdate($username, $room, 1, 2, 1);
+                    }
+                    else
+                    {
+                        $msg .= urlencode("You don't have a channel to broadcast.");
+                        $loggedin = 0;
+                    }
 
 
                 }
-               
+
 
 
                 ?>firstParameter=fix&server=<?php echo urlencode($rtmp_server); ?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&room=<?php echo $room?>&welcome=Welcome!&username=<?php echo $username?>&userlabel=<?php echo $userlabel?>&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo urlencode($options['overLink'])?>&userType=3&msg=<?php echo $msg?>&loggedin=<?php echo $loggedin?>&loadstatus=1&debug=<?php echo $debug?><?php
@@ -3055,7 +3033,7 @@ $msg .= __('Username and channel created: ') . $user_name ;
 
                 $sql = "SELECT * FROM $table_name3 where name='$roomName'";
                 $channel = $wpdb->get_row($sql);
-               // $wpdb->query($sql);
+                // $wpdb->query($sql);
 
                 if (!$channel)
                 {
@@ -3218,10 +3196,10 @@ $msg .= __('Username and channel created: ') . $user_name ;
                 }
 
 
-                    $s = $username;
-                    $u = $username;
-                    $m = '';
-                    $r = $roomName;
+                $s = $username;
+                $u = $username;
+                $m = '';
+                $r = $roomName;
                 if ($loggedin) VWliveStreaming::sessionUpdate($u, $r, 0, 1, 1);
 
 
@@ -3371,7 +3349,7 @@ layoutEND;
 
 
                 if ($loggedin) VWliveStreaming::sessionUpdate($username, $room, 1, 1, 1);
-           
+
                 if ($loggedin) VWliveStreaming::webSessionSave($username, 1); //approve session for rtmp check
 
 
@@ -3601,152 +3579,152 @@ lt=last session time received from this script in (milliseconds)
                         $r = $user['rooms'];
                         $s = $user['session'];
                         $u = $user['username'];
-                        
+
                         $ztime=time();
                         $disconnect = "";
-                        
+
                         if ($ban =  VWliveStreaming::containsAny($s,$options['bannedNames'])) $disconnect = "Name banned ($s,$ban)!";
-                        
+
 
                         if ($user['role'] == '1') //broadcaster
                             {
 
                             $table_name = $wpdb->prefix . "vw_sessions";
-               
-                                //user online
-                                $sqlS = "SELECT * FROM $table_name WHERE session='$s' AND status='1' ORDER BY type DESC, edate DESC LIMIT 0,1";
+
+                            //user online
+                            $sqlS = "SELECT * FROM $table_name WHERE session='$s' AND status='1' ORDER BY type DESC, edate DESC LIMIT 0,1";
+                            $session = $wpdb->get_row($sqlS);
+
+                            if (!$session)
+                            {
+                                $sql="INSERT INTO `$table_name` ( `session`, `username`, `room`, `message`, `sdate`, `edate`, `status`, `type`) VALUES ('$s', '$u', '$r', '$m', $ztime, $ztime, 1, 2)";
+                                $wpdb->query($sql);
                                 $session = $wpdb->get_row($sqlS);
+                            }
 
-                                if (!$session)
+
+                            if ($session->type == 2) //rtmp session
                                 {
-                                    $sql="INSERT INTO `$table_name` ( `session`, `username`, `room`, `message`, `sdate`, `edate`, `status`, `type`) VALUES ('$s', '$u', '$r', '$m', $ztime, $ztime, 1, 2)";
-                                    $wpdb->query($sql);
-                                    $session = $wpdb->get_row($sqlS);
-                                }
-
-
-                                if ($session->type == 2) //rtmp session
-                                {        
                                 //generate external snapshot for external broadcaster
                                 VWliveStreaming::rtmpSnapshot($session);
-                                
+
                                 $sqlC = "SELECT * FROM $table_name3 WHERE name='" . $session->room . "' LIMIT 0,1";
                                 $channel = $wpdb->get_row($sqlC);
-                                
-                                    //update session
-                                    $sql="UPDATE `$table_name` set edate=$ztime where id='".$session->id."'";
-                                    $wpdb->query($sql);
-                                    
-                                    if ($ban =  VWliveStreaming::containsAny($channel->name,$options['bannedNames'])) $disconnect = "Room banned ($ban)!";
-                                
-                                    //calculate time in ms based on previous request
-                                    $lastTime =  $session->edate * 1000;
-                                    $currentTime = $ztime * 1000;
 
-                                    //update time
-                                    $dS = floor(($currentTime-$lastTime)/1000);
-                                    if ($dS>180 || $dS<0) $disconnect = "Web server out of sync!"; //Updates should be faster than 3 minutes; fraud attempt?
+                                //update session
+                                $sql="UPDATE `$table_name` set edate=$ztime where id='".$session->id."'";
+                                $wpdb->query($sql);
 
-                                    $channel->btime += $dS;
+                                if ($ban =  VWliveStreaming::containsAny($channel->name,$options['bannedNames'])) $disconnect = "Room banned ($ban)!";
 
-                                    //update room
-                                    $sql="UPDATE `$table_name3` set edate=$ztime, btime = " . $channel->btime . " where id = '" . $channel->id. "'";
-                                    $wpdb->query($sql);
-                                }
+                                //calculate time in ms based on previous request
+                                $lastTime =  $session->edate * 1000;
+                                $currentTime = $ztime * 1000;
+
+                                //update time
+                                $dS = floor(($currentTime-$lastTime)/1000);
+                                if ($dS>180 || $dS<0) $disconnect = "Web server out of sync!"; //Updates should be faster than 3 minutes; fraud attempt?
+
+                                $channel->btime += $dS;
+
+                                //update room
+                                $sql="UPDATE `$table_name3` set edate=$ztime, btime = " . $channel->btime . " where id = '" . $channel->id. "'";
+                                $wpdb->query($sql);
+                            }
 
 
-                                //room usage
-                                // options in minutes
-                                // mysql in s
-                                // flash in ms (minimise latency errors)
+                            //room usage
+                            // options in minutes
+                            // mysql in s
+                            // flash in ms (minimise latency errors)
 
-                                if ($channel->type>=2) //premium
-                                    {
-                                    $maximumBroadcastTime =  60 * $options['pBroadcastTime'];
-                                    $maximumWatchTime =  60 * $options['pWatchTime'];
-                                }
-                                else
+                            if ($channel->type>=2) //premium
                                 {
-                                    $maximumBroadcastTime =  60 * $options['broadcastTime'];
-                                    $maximumWatchTime =  60 * $options['watchTime'];
-                                }
+                                $maximumBroadcastTime =  60 * $options['pBroadcastTime'];
+                                $maximumWatchTime =  60 * $options['pWatchTime'];
+                            }
+                            else
+                            {
+                                $maximumBroadcastTime =  60 * $options['broadcastTime'];
+                                $maximumWatchTime =  60 * $options['watchTime'];
+                            }
 
-                                $maximumSessionTime = $maximumBroadcastTime; //broadcaster
+                            $maximumSessionTime = $maximumBroadcastTime; //broadcaster
 
-                                $timeUsed = $channel->btime * 1000;
+                            $timeUsed = $channel->btime * 1000;
 
-                                if ($maximumBroadcastTime && $maximumBroadcastTime < $channel->btime ) $disconnect = "Allocated broadcasting time ended!";
-                                if ($maximumWatchTime && $maximumWatchTime < $channel->wtime ) $disconnect = "Allocated watch time ended!";
+                            if ($maximumBroadcastTime && $maximumBroadcastTime < $channel->btime ) $disconnect = "Allocated broadcasting time ended!";
+                            if ($maximumWatchTime && $maximumWatchTime < $channel->wtime ) $disconnect = "Allocated watch time ended!";
 
-                                $maximumSessionTime *=1000;
-              
+                            $maximumSessionTime *=1000;
+
 
                         }
                         else //subscriber viewer
                             {
                             $table_name = $wpdb->prefix . "vw_lwsessions";
 
-             
 
-                                //update viewer online
-                                $sqlS = "SELECT * FROM $table_name WHERE session='$s' AND status='1' ORDER BY type DESC, edate DESC LIMIT 0,1";
 
+                            //update viewer online
+                            $sqlS = "SELECT * FROM $table_name WHERE session='$s' AND status='1' ORDER BY type DESC, edate DESC LIMIT 0,1";
+
+                            $session = $wpdb->get_row($sqlS);
+                            if (!$session)
+                            {
+                                $sql="INSERT INTO `$table_name` ( `session`, `username`, `room`, `message`, `sdate`, `edate`, `status`, `type`) VALUES ('$s', '$u', '$r', '', $ztime, $ztime, 1, 2)";
+                                $wpdb->query($sql);
                                 $session = $wpdb->get_row($sqlS);
-                                if (!$session)
+                            };
+
+
+                            if ($session->type == '2') //rtmp session
                                 {
-                                    $sql="INSERT INTO `$table_name` ( `session`, `username`, `room`, `message`, `sdate`, `edate`, `status`, `type`) VALUES ('$s', '$u', '$r', '', $ztime, $ztime, 1, 2)";
-                                    $wpdb->query($sql);
-                                    $session = $wpdb->get_row($sqlS);
-                                };
 
-
-                                if ($session->type == '2') //rtmp session
-                                    {
-                                    
                                 $sqlC = "SELECT * FROM $table_name3 WHERE name='" . $session->room . "' LIMIT 0,1";
                                 $channel = $wpdb->get_row($sqlC);
-                                                        
 
-                                    $sql="UPDATE `$table_name` set edate=$ztime where id='".$session->id."'";
-                                    $wpdb->query($sql);
 
-                                    //calculate time in ms based on previous request
-                                    $lastTime =  $session->edate * 1000;
-                                    $currentTime = $ztime * 1000;
-                                    //update room time
-                                    $dS = floor(($currentTime-$lastTime)/1000);
-                                    if ($dS>180 || $dS<0) $disconnect = "Web server out of sync!"; //Updates should be faster than 3 minutes; fraud attempt?
+                                $sql="UPDATE `$table_name` set edate=$ztime where id='".$session->id."'";
+                                $wpdb->query($sql);
 
-                                    $channel->wtime += $dS;
+                                //calculate time in ms based on previous request
+                                $lastTime =  $session->edate * 1000;
+                                $currentTime = $ztime * 1000;
+                                //update room time
+                                $dS = floor(($currentTime-$lastTime)/1000);
+                                if ($dS>180 || $dS<0) $disconnect = "Web server out of sync!"; //Updates should be faster than 3 minutes; fraud attempt?
 
-                                    //update
-                                    $sql="UPDATE `$table_name3` set wtime = " . $channel->wtime . " where id = '" . $channel->id. "'";
-                                    $wpdb->query($sql);
-                                }
-                                // room usage
-                                // options in minutes
-                                // mysql in s
-                                // flash in ms (minimise latency errors)
+                                $channel->wtime += $dS;
 
-                                if ($channel->type>=2) //premium
-                                    {
-                                    $maximumBroadcastTime =  60 * $options['pBroadcastTime'];
-                                    $maximumWatchTime =  60 * $options['pWatchTime'];
-                                }
-                                else
+                                //update
+                                $sql="UPDATE `$table_name3` set wtime = " . $channel->wtime . " where id = '" . $channel->id. "'";
+                                $wpdb->query($sql);
+                            }
+                            // room usage
+                            // options in minutes
+                            // mysql in s
+                            // flash in ms (minimise latency errors)
+
+                            if ($channel->type>=2) //premium
                                 {
-                                    $maximumBroadcastTime =  60 * $options['broadcastTime'];
-                                    $maximumWatchTime =  60 * $options['watchTime'];
-                                }
+                                $maximumBroadcastTime =  60 * $options['pBroadcastTime'];
+                                $maximumWatchTime =  60 * $options['pWatchTime'];
+                            }
+                            else
+                            {
+                                $maximumBroadcastTime =  60 * $options['broadcastTime'];
+                                $maximumWatchTime =  60 * $options['watchTime'];
+                            }
 
-                                $maximumSessionTime = $maximumWatchTime;
+                            $maximumSessionTime = $maximumWatchTime;
 
-                                $timeUsed = $channel->wtime * 1000;
+                            $timeUsed = $channel->wtime * 1000;
 
-                                if ($maximumBroadcastTime && $maximumBroadcastTime < $channel->btime ) $disconnect = "Allocated broadcasting time ended!";
-                                if ($maximumWatchTime && $maximumWatchTime < $channel->wtime ) $disconnect = "Allocated watch time ended!";
+                            if ($maximumBroadcastTime && $maximumBroadcastTime < $channel->btime ) $disconnect = "Allocated broadcasting time ended!";
+                            if ($maximumWatchTime && $maximumWatchTime < $channel->wtime ) $disconnect = "Allocated watch time ended!";
 
-                                $maximumSessionTime *=1000;
+                            $maximumSessionTime *=1000;
 
 
                         }
@@ -3807,13 +3785,13 @@ lt=last session time received from this script in (milliseconds)
 
                 if (count($p))
                 {
-                $username = $p[0];
-                $room = $channel = $p[1];
-                $key = $p[2];
-                $broadcaster = $p[3];
-                $broadcasterID = $p[4];
+                    $username = $p[0];
+                    $room = $channel = $p[1];
+                    $key = $p[2];
+                    $broadcaster = $p[3];
+                    $broadcasterID = $p[4];
                 }
-                
+
                 $postID = 0;
                 $ztime = time();
 
@@ -3828,40 +3806,40 @@ lt=last session time received from this script in (milliseconds)
 
                 //rtmp key login for external apps
                 if ($broadcaster=='1') //external broadcaster
-                {
-                    $validKey = md5('vw' . $options['webKey'] . $broadcasterID . $postID);
-                    if ($key == $validKey) 
                     {
-                    VWliveStreaming::webSessionSave($session, 1, $key);
+                    $validKey = md5('vw' . $options['webKey'] . $broadcasterID . $postID);
+                    if ($key == $validKey)
+                    {
+                        VWliveStreaming::webSessionSave($session, 1, $key);
 
-                    //setup/update channel in sql
-                    global $wpdb;
-                    $table_name3 = $wpdb->prefix . "vw_lsrooms";
-                    $wpdb->flush();
+                        //setup/update channel in sql
+                        global $wpdb;
+                        $table_name3 = $wpdb->prefix . "vw_lsrooms";
+                        $wpdb->flush();
 
-                    $sql = "SELECT * FROM $table_name3 where owner='$username' and name='$room'";
-                    $channelR = $wpdb->get_row($sql);
+                        $sql = "SELECT * FROM $table_name3 where owner='$username' and name='$room'";
+                        $channelR = $wpdb->get_row($sql);
 
-                    if (!$channelR)
-                        $sql="INSERT INTO `$table_name3` ( `owner`, `name`, `sdate`, `edate`, `rdate`,`status`, `type`) VALUES ('$username', '$room', $ztime, $ztime, $ztime, 0, 1)";
-                    elseif ($options['timeReset'] && $channelR->rdate < $ztime - $options['timeReset']*24*3600) //time to reset in days
-                        $sql="UPDATE `$table_name3` set edate=$ztime, type=1, rdate=$ztime, wtime=0, btime=0 where owner='$username' and name='$room'";
-                    else
-                        $sql="UPDATE `$table_name3` set edate=$ztime where owner='$username' and name='$room'";
+                        if (!$channelR)
+                            $sql="INSERT INTO `$table_name3` ( `owner`, `name`, `sdate`, `edate`, `rdate`,`status`, `type`) VALUES ('$username', '$room', $ztime, $ztime, $ztime, 0, 1)";
+                        elseif ($options['timeReset'] && $channelR->rdate < $ztime - $options['timeReset']*24*3600) //time to reset in days
+                            $sql="UPDATE `$table_name3` set edate=$ztime, type=1, rdate=$ztime, wtime=0, btime=0 where owner='$username' and name='$room'";
+                        else
+                            $sql="UPDATE `$table_name3` set edate=$ztime where owner='$username' and name='$room'";
 
-                    $wpdb->query($sql);
-                    
-                    VWliveStreaming::sessionUpdate($username, $room, 1, 2, 1);
+                        $wpdb->query($sql);
+
+                        VWliveStreaming::sessionUpdate($username, $room, 1, 2, 1);
                     }
 
                 }
                 elseif ($broadcaster=='0') //external watcher
-                {
-                    $validKeyView = md5('vw' . $options['webKey']. $postID);
-                    if ($key == $validKeyView) 
                     {
-                    VWliveStreaming::webSessionSave($session, 0, $key);
-                    VWliveStreaming::sessionUpdate($username, $room, 0, 2, 1);
+                    $validKeyView = md5('vw' . $options['webKey']. $postID);
+                    if ($key == $validKeyView)
+                    {
+                        VWliveStreaming::webSessionSave($session, 0, $key);
+                        VWliveStreaming::sessionUpdate($username, $room, 0, 2, 1);
                     }
                     //VWliveStreaming::webSessionSave('error-'.$session, 0, "$channel-$session-$key-$postID-$validKeyView-".sanitize_file_name($channel) );
 
@@ -3965,7 +3943,7 @@ cam, mic = 0 none, 1 disabled, 2 enabled
                     $options = get_option('VWliveStreamingOptions');
                     if ($ban =  VWliveStreaming::containsAny($s, $options['bannedNames'])) $disconnect = "Name banned ($s, $ban)!";
                     if ($ban =  VWliveStreaming::containsAny($r, $options['bannedNames'])) $disconnect = "Room banned ($r, $ban)!";
- 
+
                     if ($channel->type>=2) //premium
                         {
                         $maximumBroadcastTime =  60 * $options['pBroadcastTime'];
@@ -4004,12 +3982,12 @@ cam, mic = 0 none, 1 disabled, 2 enabled
                 break;
 
             case 'translation':
-                ?>
-                
+?>
+
                <translations>
 <?php
-$options = get_option('VWliveStreamingOptions');
-echo html_entity_decode(stripslashes($options['translationCode']));
+                $options = get_option('VWliveStreamingOptions');
+                echo html_entity_decode(stripslashes($options['translationCode']));
 ?>
 </translations>
 			<?php
@@ -4042,12 +4020,12 @@ lt=last session time received (from web status script)
 
                 $sql = "SELECT * FROM $table_name3 where name='$room'";
                 $channel = $wpdb->get_row($sql);
-               // $wpdb->query($sql);
-                
+                // $wpdb->query($sql);
+
                 if ($channel) if ($channel->type>=2) $ad = '';
-                else             $ad = urlencode(html_entity_decode(stripslashes($options['adsCode'])));
-                
-                $options = get_option('VWliveStreamingOptions');
+                    else             $ad = urlencode(html_entity_decode(stripslashes($options['adsCode'])));
+
+                    $options = get_option('VWliveStreamingOptions');
 
                 ?>x=1&ad=<?php echo $ad; ?>&loadstatus=1<?php
                 break;

@@ -5,7 +5,7 @@ Author URI: http://www.videowhisper.com
 Plugin Name: VideoWhisper Live Streaming Broadcast
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Donate link: http://www.videowhisper.com/?p=Invest
-Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, on air, chat, flash, fms, red5, wowza, audio, video chat, videochat, widget, plugin, media, av, livestream, station, channel, sidebar, webcam, cam, group, groups, tab, P2P, twitch, justin, ustream, stickam, iOS
+Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, on air, chat, flash, fms, red5, wowza, audio, video chat, videochat, widget, plugin, media, av, livestream, station, channel, sidebar, webcam, cam, group, groups, tab, P2P, twitch, hitbox, justin, ustream, stickam, iOS, wirecast, open, broadcaster, software, GoCoder, LivOnTv, iPhone, iPad
 Requires at least: 2.7
 Tested up to: 3.8.1
 Stable tag: trunk
@@ -56,8 +56,9 @@ http://www.videowhisper.com/?p=Requirements
 http://www.videowhisper.com/?p=RTMP+Applications
 * Install from repository or copy this plugin folder to your wordpress installation in your plugins folder. You should obtain wp-content/plugins/videowhisper-live-streaming-integration .
 * Enable the plugin from Wordpress admin area and fill the "Settings", including rtmp address there.
-* Enable the widget that will add links to the broadcasting interface and current live shows. If you have BuddyPress you can skip this step and allow only group broadcast.
-* Insert online channel snapshots in posts and pages with [videowhisper livesnapshots] shortcode
+* Add new Channels, Broadcast Live pages to your menus if not automatically added
+* Enable the widget that will add links to the broadcasting interface and current live shows. If you have BuddyPress or use the menus, you can skip this step and allow only group broadcast.
+* Insert online channel listings, players with shortocdes documented on setttings page
 
 
 == Screenshots ==
@@ -73,16 +74,22 @@ If your users want to broadcast their screen (when playing a game, using a progr
 == Documentation ==
 * Plugin Homepage : http://www.videowhisper.com/?p=WordPress+Live+Streaming
 * Application Homepage : http://www.videowhisper.com/?p=Live+Streaming
-* Forum : http://www.videowhisper.com/forum.php?ftid=14&t=Live-Streaming-video-streaming-live-broadcast
+* Developer Contact : http://www.videowhisper.com/tickets_submit.php
+* Turnkey Site Project: http://www.turnkeyclone.com/twitch-tv-script-for-live-broadcasting/
+
 
 == Demo ==
-* See BuddyPress integration live on http://livon.tv/
-* See plan WordPress integration on http://www.videochat-scripts.com/live-streaming-on-wordpress-by-videowhisper/
+* Test it on demo site http://www.videochat-scripts.com/live-streaming-on-wordpress-by-videowhisper/
+* Test it on live site http://livon.tv
+
 
 == Extra ==
 More information, the latest updates, other plugins and non-WordPress editions can be found at http://www.videowhisper.com/ .
 
 == Changelog ==
+
+= 4.29.16 =
+* Support for VideoWhisper Video Share / Video On Demand (VOD) plugin
 
 = 4.29.8 =
 * iOS detection, automated display of direct/transcoded HLS video 
