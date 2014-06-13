@@ -3664,8 +3664,6 @@ lt=last session time received from this script in (milliseconds)
                             {
                             $table_name = $wpdb->prefix . "vw_lwsessions";
 
-
-
                             //update viewer online
                             $sqlS = "SELECT * FROM $table_name WHERE session='$s' AND status='1' ORDER BY type DESC, edate DESC LIMIT 0,1";
 

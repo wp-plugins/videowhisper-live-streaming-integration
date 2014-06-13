@@ -7,18 +7,15 @@ Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Donate link: http://www.videowhisper.com/?p=Invest
 Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, on air, chat, flash, fms, red5, wowza, audio, video chat, videochat, widget, plugin, media, av, livestream, station, channel, sidebar, webcam, cam, group, groups, tab, P2P, twitch, hitbox, justin, ustream, stickam, iOS, wirecast, open, broadcaster, software, GoCoder, LivOnTv, iPhone, iPad
 Requires at least: 2.7
-Tested up to: 3.8.1
+Tested up to: 3.9.1
 Stable tag: trunk
 
 The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages and other sites. 
 
 == Description ==
-VideoWhisper Live Streaming software integrates web applications to: 
-1. Broadcast video live,
-2. Embed live video streaming and chat, 
-3. Embed live video streaming only.
+VideoWhisper Live Streaming plugin allows site users and admins to broadcast live streaming channels.
 
-Latest version includes:
+= Key Features =
 * codec and quality settings
 * iOS transcoding support for iPhone, iPad playback
 * automated detection of iOS
@@ -32,14 +29,18 @@ Latest version includes:
 * external broadcaster/player support with special RTMP side
 * generate snapshots for external streams with special RTMP side
 * custom ads in chat
+* video archive support with VideoShare VOD Plugin http://wordpress.org/plugins/video-share-vod/
+
  
 Use this software for adding to your site, features like on Twitch TV, Justin TV, UStream tv, Mogulus, LiveStream, Stickam, Blog tv, Live yahoo or their clones and alternatives.  
 
 Administrators can restrict access to broadcasting and watching to certain users.
 
-Also includes a plugin that provides a linking widget. The widget also displays online broadcasters and their show names.
+Includes a widget that can display online broadcasters and their show names.
 
 There is a settings page with multiple parameters and permissions (what users can broadcast and watch).
+
+
 
 = BuddyPress integration =
 If BuddyPress is installed this will add a Live Stream tab to the group where users can watch live video and chat realtime. Admins can broadcast anytime from Admin > Live Streaming.
