@@ -29,7 +29,7 @@ VideoWhisper Live Streaming plugin allows site users and admins to broadcast liv
 * external broadcaster/player support with special RTMP side
 * generate snapshots for external streams with special RTMP side
 * custom ads in chat
-* video archive support with VideoShare VOD Plugin http://wordpress.org/plugins/video-share-vod/
+* video archive support with **VideoShare VOD** Plugin http://wordpress.org/plugins/video-share-vod/
 
  
 Use this software for adding to your site, features like on Twitch TV, Justin TV, UStream tv, Mogulus, LiveStream, Stickam, Blog tv, Live yahoo or their clones and alternatives.  
