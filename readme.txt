@@ -88,6 +88,9 @@ More information, the latest updates, other plugins and non-WordPress editions c
 
 == Changelog ==
 
+= 4.29.17 =
+* Display warning on channel page when channel time is exceeded or channel is offline
+
 = 4.29.16 =
 * Support for VideoWhisper Video Share / Video On Demand (VOD) plugin
 
