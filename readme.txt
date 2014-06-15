@@ -16,30 +16,29 @@ The VideoWhisper Live Streaming software can easily be used to add video broadca
 VideoWhisper Live Streaming plugin allows site users and admins to broadcast live streaming channels.
 
 = Key Features =
-* codec and quality settings
+* live video channels (custom post type)
+* channel setup and management page in frontend
+* channel listings with live AJAX updates
+* web broadcast with codec and quality settings (H264, Speex)
 * iOS transcoding support for iPhone, iPad playback
 * automated detection of iOS
 * usage permissions by role, email, id, name
-* premium channels
 * limit broadcasting and watch time per channel
-* stats
+* premium channels
+* channel stats (broadcast/watch time, last activity)
 * P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage
-* channel setup and management page in frontend
-* channel listings with live AJAX updates
-* external broadcaster/player support with special RTMP side
+* external broadcaster/player support with special RTMP side (Wirecast, Flash Media Live Encoder, Open Broadcaster Software, iOS GoCoder app)
 * generate snapshots for external streams with special RTMP side
-* custom ads in chat
 * video archive support with [Video Share VOD](http://wordpress.org/plugins/video-share-vod/ "Video Share / Video On Demand") WordPress Plugin
  
-Use this software for adding to your site, features like on Twitch TV, Justin TV, UStream tv, Mogulus, LiveStream, Stickam, Blog tv, Live yahoo or their clones and alternatives.  
-
-Administrators can restrict access to broadcasting and watching to certain users.
+Use this software for setting up features like on Twitch TV, Justin TV, UStream tv, Mogulus, LiveStream, Stickam, Blog tv, Live yahoo or their clones and alternatives.  
 
 Includes a widget that can display online broadcasters and their show names.
 
-There is a settings page with multiple parameters and permissions (what users can broadcast and watch).
-
-
+= Monetization =
+* Membership Ready with Role Permissions: Can be used with membership/subscription plugins to setup paid membership types.
+* Pay Per View Ready with Custom Post Type: Can be used with access control / sell content plugins to setup paid access to live broadcasts.
+* Custom ads right in text chat box, for increased conversion
 
 = BuddyPress integration =
 If BuddyPress is installed this will add a Live Stream tab to the group where users can watch live video and chat realtime. Admins can broadcast anytime from Admin > Live Streaming.

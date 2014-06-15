@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.17
+Version: 4.29.18
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -304,7 +304,9 @@ if (!class_exists("VWliveStreaming"))
             if (!$broadcast)
             {
                 if ($channelR->wtime >= $maximumWatchTime) return fm('Watch time exceeded!');
-                if (!$options['alwaysWatch']) if (time() - $channelR->wtime > 30) return fm('Channel is currently offline. Try again later!');
+                
+                if (!$options['alwaysWatch']) 
+                if (time() - $channelR->edate > 30) return fm('Channel is currently offline. Try again later!');
 
             }
             else if ($channelR->btime >= $maximumBroadcastTime) return fm('Broadcast time exceeded!');
