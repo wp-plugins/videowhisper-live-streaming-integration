@@ -87,6 +87,9 @@ More information, the latest updates, other plugins and non-WordPress editions c
 
 == Changelog ==
 
+= 4.29.19 =
+* Category and tag archive pages also include channels
+
 = 4.29.17 =
 * Display warning on channel page when channel time is exceeded or channel is offline
 

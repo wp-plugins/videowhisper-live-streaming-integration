@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.18
+Version: 4.29.20
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -41,6 +41,9 @@ if (!class_exists("VWliveStreaming"))
 
             add_filter( "the_content", array('VWliveStreaming','channel_page'));
             add_filter( 'query_vars', array('VWliveStreaming','channel_query_vars'));
+
+
+            add_filter('pre_get_posts', array('VWliveStreaming','pre_get_posts'));
 
 
             //shortcodes
@@ -158,10 +161,34 @@ if (!class_exists("VWliveStreaming"))
 
         }
 
+        function pre_get_posts($query)
+        {
+
+            //add channels to post listings
+            if(is_category() || is_tag()) 
+                {
+                $query_type = get_query_var('post_type');
+
+
+                if($query_type)
+                {
+                    if (in_array('post',$query_type) && !in_array('channel',$query_type))
+                        $query_type[] = 'channel';
+
+                }
+                else  //default
+                {
+                    $query_type = array('post', 'channel');
+                }
+                
+                $query->set('post_type', $query_type);
+            }
+
+            return $query;
+        }
 
         function updatePages()
         {
-
 
             $options = get_option('VWliveStreamingOptions');
 
@@ -269,12 +296,15 @@ if (!class_exists("VWliveStreaming"))
 
         function channelInvalid( $channel, $broadcast =false)
         {
+            //check if online channel is invalid for any reason
 
             function fm($t)
             {
-            return '<div class="w-actionbox color_primary">' .$t . '</div>';
-                
+                //format message
+                return '<div class="w-actionbox color_primary">' .$t . '</div>';
             }
+
+
             $channel = sanitize_file_name($channel);
             if (!$channel) return fm('No channel name!');
 
@@ -285,7 +315,7 @@ if (!class_exists("VWliveStreaming"))
             $channelR = $wpdb->get_row($sql);
 
             if (!$channelR) if ($broadcast) return; //first broadcast
-                else return fm('Channel not found!');
+                else return fm('Channel was not found! Live channel is only accessible on broadcast.');
 
 
                 $options = get_option('VWliveStreamingOptions');
@@ -303,13 +333,13 @@ if (!class_exists("VWliveStreaming"))
 
             if (!$broadcast)
             {
-                if ($channelR->wtime >= $maximumWatchTime) return fm('Watch time exceeded!');
-                
-                if (!$options['alwaysWatch']) 
-                if (time() - $channelR->edate > 30) return fm('Channel is currently offline. Try again later!');
+                if ($channelR->wtime >= $maximumWatchTime) return fm('Channel watch time exceeded!');
+
+                if (!$options['alwaysWatch'])
+                    if (time() - $channelR->edate > 30) return fm('Channel is currently offline. Try again later!');
 
             }
-            else if ($channelR->btime >= $maximumBroadcastTime) return fm('Broadcast time exceeded!');
+            else if ($channelR->btime >= $maximumBroadcastTime) return fm('Channel broadcast time exceeded!');
 
                 return ;
 
@@ -2141,8 +2171,6 @@ Configure options for live interactions and streaming.
 yet (from a managed rtmp host), go to <a href="http://www.videowhisper.com/?p=RTMP+Applications" target="_blank">RTMP Application   Setup</a> for  installation details.</p>
 <input name="rtmp_server" type="text" id="rtmp_server" size="100" maxlength="256" value="<?php echo $options['rtmp_server']?>"/>
 <BR> A public accessible rtmp hosting server is required with custom videowhisper rtmp side. Ex: rtmp://your-server/videowhisper
-<?php submit_button(); ?>
-
 
 <h4>HTTP Streaming URL</h4>
 This is used for accessing transcoded streams on HLS playback. Usually available with <a href="http://www.videowhisper.com/?p=Wowza+Media+Server+Hosting">Wowza Hosting</a> .<br>
