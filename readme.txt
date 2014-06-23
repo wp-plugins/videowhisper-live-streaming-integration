@@ -29,8 +29,10 @@ VideoWhisper Live Streaming plugin allows site users and admins to broadcast liv
 * P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage
 * external broadcaster/player support with special RTMP side (Wirecast, Flash Media Live Encoder, Open Broadcaster Software, iOS GoCoder app)
 * generate snapshots for external streams with special RTMP side
-* video archive support with [Video Share VOD](http://wordpress.org/plugins/video-share-vod/ "Video Share / Video On Demand") WordPress Plugin
- 
+* video archive support with [Video Share VOD](http://wordpress.org/plugins/video-share-vod/  "Video Share / Video On Demand") WordPress Plugin
+
+For more details see the [WordPress Live Video Streaming](http://www.videowhisper.com/?p=WordPress+Live+Streaming "WordPress Live Video Streaming") Plugin Homepage ...
+  
 Use this software for setting up features like on Twitch TV, Justin TV, UStream tv, Mogulus, LiveStream, Stickam, Blog tv, Live yahoo or their clones and alternatives.  
 
 Includes a widget that can display online broadcasters and their show names.
@@ -58,7 +60,6 @@ http://www.videowhisper.com/?p=RTMP+Applications
 * Add new Channels, Broadcast Live pages to your menus if not automatically added
 * Enable the widget that will add links to the broadcasting interface and current live shows. If you have BuddyPress or use the menus, you can skip this step and allow only group broadcast.
 * Insert online channel listings, players with shortocdes documented on setttings page
-
 
 == Screenshots ==
 1. Live Broadcast (for publisher)

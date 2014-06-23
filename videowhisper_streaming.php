@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.20
+Version: 4.29.21
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -369,7 +369,6 @@ if (!class_exists("VWliveStreaming"))
             $userkeys[] = $current_user->ID;
             $userkeys[] = $current_user->user_email;
             $userkeys[] = $current_user->display_name;
-
 
             switch ($canBroadcast)
             {
@@ -966,10 +965,10 @@ HTMLCODE;
 
                 if (!$stream) return "<div class='error'>Can't load broadcasting details: Missing channel name!</div>";
 
-                if ($postID>0)
+                if ($postID>0 && $options['postChannels']) 
                 {
                     $channel = get_post( $postID );
-                    if ($channel->post_author != $current_user->ID) return "<div class='error'>Only owner can broadcast on own channel!</div>";
+                    if ($channel->post_author != $current_user->ID) return "<div class='error'>Only owner can broadcast (#$postID)!</div>";
                 }
 
             $rtmpAddress = VWliveStreaming::rtmp_address($current_user->ID, $postID, true, $stream, $stream);
@@ -1037,10 +1036,10 @@ HTMLCODE;
 
                 if (!$stream) return "<div class='error'>Can't load broadcasting interface: Missing channel name!</div>";
 
-                if ($postID>0)
+                if ($postID>0 && $options['postChannels'])
                 {
                     $channel = get_post( $postID );
-                    if ($channel->post_author != $current_user->ID) return "<div class='error'>Only owner can broadcast on own channel!</div>";
+                    if ($channel->post_author != $current_user->ID) return "<div class='error'>Only owner can broadcast (#$postID)!</div>";
                 }
 
 
@@ -2633,7 +2632,7 @@ Settings for video subscribers that watch the live channels using watch or plain
                 {
 ?>
 
-<h3>Channel '<?php echo $username; ?>'</h3>
+<h3>Channel '<?php echo $username; ?>': Go Live</h3>
 <ul>
 <li>
 <a href="<?php echo $broadcast_url . urlencode($username); ?>"><img src="<?php echo $root_url; ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/templates/live/i_webcam.png"
@@ -2644,7 +2643,8 @@ align="absmiddle" border="0">Start Broadcasting</a>
                     ?>wp-content/plugins/videowhisper-live-streaming-integration/ls/templates/live/i_uvideo.png" align="absmiddle" border="0">View Channel</a>
 </li>
 </ul>
-<p>To allow users to broadcast from frontend (as configured in settings), <a href='widgets.php'>enable the widget</a> and/or channel posts and frontend management page. On some templates/setups you also need to add the page to site menu.
+<p>To allow users to broadcast from frontend (as configured in settings), <a href='widgets.php'>enable the widget</a> and/or channel posts and frontend management page.
+<br>On some templates/setups you also need to add the page to site menu.
 </p>
 <?php
                 }
@@ -3144,7 +3144,7 @@ align="absmiddle" border="0">Start Broadcasting</a>
 
                 if (!$channel)
                 {
-                    $msg = urlencode("Channel $roomName not found!");
+                    $msg = urlencode("Channel $roomName not found. Owner must broadcast first first!");
                 }
                 else
                 {
