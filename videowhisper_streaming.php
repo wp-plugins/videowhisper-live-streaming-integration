@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.23
+Version: 4.29.25
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -3108,8 +3108,8 @@ align="absmiddle" border="0">Start Broadcasting</a>
                 $p2pGroup = $options['p2pGroup'];
                 $supportRTMP = $options['supportRTMP'];
                 $supportP2P = $options['supportP2P'];
-                $alwaystRTMP = $options['alwaystRTMP'];
-                $alwaystP2P = $options['alwaystP2P'];
+                $alwaysRTMP = $options['alwaysRTMP'];
+                $alwaysP2P = $options['alwaysP2P'];
                 $disableBandwidthDetection = $options['disableBandwidthDetection'];
 
                 global $current_user;
@@ -3221,8 +3221,8 @@ align="absmiddle" border="0">Start Broadcasting</a>
                 $p2pGroup = $options['p2pGroup'];
                 $supportRTMP = $options['supportRTMP'];
                 $supportP2P = $options['supportP2P'];
-                $alwaystRTMP = $options['alwaystRTMP'];
-                $alwaystP2P = $options['alwaystP2P'];
+                $alwaysRTMP = $options['alwaysRTMP'];
+                $alwaysP2P = $options['alwaysP2P'];
                 $disableBandwidthDetection = $options['disableBandwidthDetection'];
 
                 global $current_user;
