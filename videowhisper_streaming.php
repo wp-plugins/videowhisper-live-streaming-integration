@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.21
+Version: 4.29.23
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -297,13 +297,17 @@ if (!class_exists("VWliveStreaming"))
         function channelInvalid( $channel, $broadcast =false)
         {
             //check if online channel is invalid for any reason
-
+			
+			if (!function_exists('fm'))
+            {
+            
             function fm($t)
             {
                 //format message
                 return '<div class="w-actionbox color_primary">' .$t . '</div>';
             }
-
+			
+			}
 
             $channel = sanitize_file_name($channel);
             if (!$channel) return fm('No channel name!');
@@ -333,13 +337,13 @@ if (!class_exists("VWliveStreaming"))
 
             if (!$broadcast)
             {
-                if ($channelR->wtime >= $maximumWatchTime) return fm('Channel watch time exceeded!');
+                if ($maximumWatchTime) if ($channelR->wtime >= $maximumWatchTime) return fm('Channel watch time exceeded!');
 
                 if (!$options['alwaysWatch'])
                     if (time() - $channelR->edate > 30) return fm('Channel is currently offline. Try again later!');
 
             }
-            else if ($channelR->btime >= $maximumBroadcastTime) return fm('Channel broadcast time exceeded!');
+            else if ($maximumBroadcastTime) if ($channelR->btime >= $maximumBroadcastTime) return fm('Channel broadcast time exceeded!');
 
                 return ;
 
@@ -2562,7 +2566,7 @@ Settings for video subscribers that watch the live channels using watch or plain
                         }
 
 
-                        echo "</th><td>".format_age(time() - $item->edate)."</td><td>".format_time($item->btime)."</td><td>".format_time($item->wtime)."</td><td>".format_age(time() - $item->rdate)."</td><td>".($item->type==2?"Premium":"Standard")."</td></tr>";
+                        echo "</th><td>". VWliveStreaming::format_age(time() - $item->edate)."</td><td>". VWliveStreaming::format_time($item->btime) . "</td><td>". VWliveStreaming::format_time($item->wtime)."</td><td>" . VWliveStreaming::format_age(time() - $item->rdate)."</td><td>".($item->type==2?"Premium":"Standard")."</td></tr>";
 
                         $broadcasting = $wpdb->get_results("SELECT * FROM `$table_name` WHERE room = '".$item->name."' ORDER BY edate DESC LIMIT 0, 100");
                         if ($broadcasting)

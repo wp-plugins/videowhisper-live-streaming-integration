@@ -5,7 +5,7 @@ Author URI: http://www.videowhisper.com
 Plugin Name: VideoWhisper Live Streaming Broadcast
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Donate link: http://www.videowhisper.com/?p=Invest
-Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, on air, chat, flash, fms, red5, wowza, audio, video chat, videochat, widget, plugin, media, av, livestream, station, channel, sidebar, webcam, cam, group, groups, tab, P2P, twitch, hitbox, justin, ustream, stickam, iOS, wirecast, open, broadcaster, software, GoCoder, LivOnTv, iPhone, iPad
+Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, on air, chat, flash, fms, red5, wowza, audio, video chat, videochat, widget, plugin, media, av, livestream, station, channel, sidebar, webcam, cam, group, groups, tab, P2P, twitch, hitbox, justin, ustream, stickam, iOS, wirecast, open, broadcaster, software, GoCoder, LivOnTv, iPhone, iPad, script, clone, alternative, turnkey, scripts
 Requires at least: 2.7
 Tested up to: 3.9.1
 Stable tag: trunk
