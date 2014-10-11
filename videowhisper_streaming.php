@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.29.25
+Version: 4.29.26
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -1992,6 +1992,78 @@ HTMLCODE
             return $adminOptions;
         }
 
+
+function getDirectorySize($path)
+{
+  $totalsize = 0;
+  $totalcount = 0;
+  $dircount = 0;
+ 
+  if (!file_exists($path))
+  {
+  $total['size'] = $totalsize;
+  $total['count'] = $totalcount;
+  $total['dircount'] = $dircount;
+  return $total;    
+  }
+ 
+  if ($handle = opendir ($path))
+  {
+    while (false !== ($file = readdir($handle)))
+    {
+      $nextpath = $path . '/' . $file;
+      if ($file != '.' && $file != '..' && !is_link ($nextpath))
+      {
+        if (is_dir ($nextpath))
+        {
+          $dircount++;
+          $result = VWliveStreaming::getDirectorySize($nextpath);
+          $totalsize += $result['size'];
+          $totalcount += $result['count'];
+          $dircount += $result['dircount'];
+        }
+        elseif (is_file ($nextpath))
+        {
+          $totalsize += filesize ($nextpath);
+          $totalcount++;
+        }
+      }
+    }
+  }
+  closedir ($handle);
+  $total['size'] = $totalsize;
+  $total['count'] = $totalcount;
+  $total['dircount'] = $dircount;
+  return $total;
+}
+
+function sizeFormat($size)
+{
+	//echo $size; 
+    if($size<1024)
+    {
+        return $size." bytes";
+    }
+    else if($size<(1024*1024))
+    {
+        $size=round($size/1024,2);
+        return $size." KB";
+    }
+    else if($size<(1024*1024*1024))
+    {
+        $size=round($size/(1024*1024),2);
+        return $size." MB";
+    }
+    else
+    {
+        $size=round($size/(1024*1024*1024),2);
+        return $size." GB";
+    }
+
+}  
+
+
+
         function options()
         {
             $options = VWliveStreaming::setupOptions();
@@ -2511,8 +2583,11 @@ Settings for video subscribers that watch the live channels using watch or plain
                 $table_name2 = $wpdb->prefix . "vw_lwsessions";
                 $table_name3 = $wpdb->prefix . "vw_lsrooms";
 
-                $items =  $wpdb->get_results("SELECT * FROM `$table_name3` ORDER BY edate DESC LIMIT 0, 100");
-                echo "<table class='wp-list-table widefat'><thead><tr><th>Channel</th><th>Last Access</th><th>Broadcast Time</th><th>Watch Time</th><th>Last Reset</th><th>Type</th></tr></thead>";
+                $items =  $wpdb->get_results("SELECT * FROM `$table_name3` ORDER BY edate DESC LIMIT 0, 200");
+                echo "<table class='wp-list-table widefat'><thead><tr><th>Channel</th><th>Last Access</th><th>Broadcast Time</th><th>Watch Time</th><th>Last Reset</th><th>Type</th><th>Logs</th></tr></thead>";
+                
+
+
                 if ($items) foreach ($items as $item)
                     {
                         echo "<tr><th>".$item->name;
@@ -2566,13 +2641,20 @@ Settings for video subscribers that watch the live channels using watch or plain
                         }
 
 
-                        echo "</th><td>". VWliveStreaming::format_age(time() - $item->edate)."</td><td>". VWliveStreaming::format_time($item->btime) . "</td><td>". VWliveStreaming::format_time($item->wtime)."</td><td>" . VWliveStreaming::format_age(time() - $item->rdate)."</td><td>".($item->type==2?"Premium":"Standard")."</td></tr>";
+                        echo "</th><td>". VWliveStreaming::format_age(time() - $item->edate)."</td><td>". VWliveStreaming::format_time($item->btime) . "</td><td>". VWliveStreaming::format_time($item->wtime)."</td><td>" . VWliveStreaming::format_age(time() - $item->rdate)."</td><td>".($item->type==2?"Premium":"Standard")."</td>";
+
+//channel text logs
+$upload_c = VWliveStreaming::getDirectorySize($options['uploadsPath'] . '/'.$item->name); 
+$upload_size = VWliveStreaming::sizeFormat($upload_c['size']);
+$logsurl = VWliveStreaming::path2url($options['uploadsPath'] . '/'.$item->name);
+
+echo '<td>'."<a target='_blank' href='$logsurl'>$upload_size ($upload_c[count] files)</a>".'</td></tr>';
 
                         $broadcasting = $wpdb->get_results("SELECT * FROM `$table_name` WHERE room = '".$item->name."' ORDER BY edate DESC LIMIT 0, 100");
                         if ($broadcasting)
                             foreach ($broadcasting as $broadcaster)
                             {
-                                echo "<tr><td colspan='6'> - " . $broadcaster->username . " Type: " . $broadcaster->type . " Status: " . $broadcaster->status . " Started: " . VWliveStreaming::format_age(time() -$broadcaster->sdate). "</td></tr>";
+                                echo "<tr><td colspan='7'> - " . $broadcaster->username . " Type: " . $broadcaster->type . " Status: " . $broadcaster->status . " Started: " . VWliveStreaming::format_age(time() -$broadcaster->sdate). "</td></tr>";
                             }
 
                         //
@@ -2580,8 +2662,20 @@ Settings for video subscribers that watch the live channels using watch or plain
                     }
                 echo "</table>";
 ?>
+<p>This page shows latest accessed channels (maximum 200).</p>
                 <p>External players and encoders (if enabled) are not monitored or controlled by this plugin, unless special <a href="http://www.videowhisper.com/?p=RTMP-Session-Control">rtmp side session control</a> is available.</p>
+                
+                
                 <?php
+                
+                //channel text logs
+$upload_c = VWliveStreaming::getDirectorySize($options['uploadsPath'] ); 
+$upload_size = VWliveStreaming::sizeFormat($upload_c['size']);
+$logsurl = VWliveStreaming::path2url($options['uploadsPath']);
+
+echo '<p>Total temporary file usage (logs, snapshots, session info): '." <a target='_blank' href='$logsurl'>$upload_size (in $upload_c[count] files and $upload_c[dircount] folders)</a>".'</p>';
+
+
                 break;
 
             case 'shortcodes';
