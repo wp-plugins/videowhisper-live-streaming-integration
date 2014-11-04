@@ -38,7 +38,7 @@ Use this software for setting up features like on Twitch TV, Justin TV, UStream 
 Includes a widget that can display online broadcasters and their show names.
 
 = Live Site and Showcase =
-* [LivOn.TV Live Video Broadcasting](http://www.turnkeyclone.com/twitch-tv-script-for-live-broadcasting/ "LivOn.TV Live Video Broadcasting")
+* [LivOn.TV Live Video Broadcasting](http://livon.tv "LivOn.TV Live Video Broadcasting")
 * [How to setup an alternative/clone site like Twitch, Hitbox, Livestream, JustinTv, UStream](http://www.turnkeyclone.com/twitch-tv-script-for-live-broadcasting/ "How to setup an alternative/clone site like Twitch, Hitbox, Livestream, JustinTv, UStream")
 
 = Monetization =
