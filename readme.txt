@@ -37,6 +37,10 @@ Use this software for setting up features like on Twitch TV, Justin TV, UStream 
 
 Includes a widget that can display online broadcasters and their show names.
 
+= Live Site and Showcase =
+* [LivOn.TV Live Video Broadcasting](http://www.turnkeyclone.com/twitch-tv-script-for-live-broadcasting/ "LivOn.TV Live Video Broadcasting")
+* [How to setup an alternative/clone site like Twitch, Hitbox, Livestream, JustinTv, UStream](http://www.turnkeyclone.com/twitch-tv-script-for-live-broadcasting/ "How to setup an alternative/clone site like Twitch, Hitbox, Livestream, JustinTv, UStream")
+
 = Monetization =
 * Membership Ready with Role Permissions: Can be used with membership/subscription plugins to setup paid membership types.
 * Pay Per View Ready with Custom Post Type: Can be used with access control / sell content plugins to setup paid access to live broadcasts.
@@ -87,6 +91,9 @@ If your users want to broadcast their screen (when playing a game, using a progr
 More information, the latest updates, other plugins and non-WordPress editions can be found at http://www.videowhisper.com/ .
 
 == Changelog ==
+
+= 4.32.1 =
+* Broadcasting application v4.32 (w. autopilot reconnect)
 
 = 4.29.26 =
 * Report log file usage in stats.
