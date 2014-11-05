@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.1
+Version: 4.32.2
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -301,10 +301,25 @@ if (!class_exists("VWliveStreaming"))
 			if (!function_exists('fm'))
             {
             
-            function fm($t)
+            function fm($t, $item = null)
             {
+              $img = '';
+              
+              if ($item)
+              {
+              $options = get_option('VWliveStreamingOptions');
+              $dir = $options['uploadsPath']. "/_thumbs";
+              $age = VWliveStreaming::format_age(time() -  $item->edate);
+              $thumbFilename = "$dir/" . $item->name . ".jpg";
+
+              $noCache = '';
+              if ($age=='LIVE') $noCache='?'.((time()/10)%100);
+
+              if (file_exists($thumbFilename)) $img = '<IMG ALIGN="RIGHT" src="' . VWliveStreaming::path2url($thumbFilename) . $noCache .'" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"><br style="clear:both">';
+              }  
+                       
                 //format message
-                return '<div class="w-actionbox color_primary">' .$t . '</div>';
+                return  '<div class="w-actionbox color_primary">'. $t . $img . '</div>';
             }
 			
 			}
@@ -319,7 +334,7 @@ if (!class_exists("VWliveStreaming"))
             $channelR = $wpdb->get_row($sql);
 
             if (!$channelR) if ($broadcast) return; //first broadcast
-                else return fm('Channel was not found! Live channel is only accessible on broadcast.');
+                else return fm('Channel was not found! Live channel is only accessible on broadcast.', $channelR);
 
 
                 $options = get_option('VWliveStreamingOptions');
@@ -337,10 +352,14 @@ if (!class_exists("VWliveStreaming"))
 
             if (!$broadcast)
             {
-                if ($maximumWatchTime) if ($channelR->wtime >= $maximumWatchTime) return fm('Channel watch time exceeded!');
+                if ($maximumWatchTime) if ($channelR->wtime >= $maximumWatchTime) return fm('Channel watch time exceeded!', $channelR);
 
                 if (!$options['alwaysWatch'])
-                    if (time() - $channelR->edate > 30) return fm('Channel is currently offline. Try again later!');
+                    if (time() - $channelR->edate > 30) 
+                    {
+                    $age = VWliveStreaming::format_age(time() -  $channelR->edate);
+                    return fm('Channel is currently offline. Try again later! Time offline: ' . $age, $channelR );
+                                      }
 
             }
             else if ($maximumBroadcastTime) if ($channelR->btime >= $maximumBroadcastTime) return fm('Channel broadcast time exceeded!');
@@ -2843,7 +2862,7 @@ align="absmiddle" border="0">Start Broadcasting</a>
             $filename = "$dir/$stream.jpg";
             if (file_exists($filename)) if (time()-filemtime($filename) < 15) return; //do not update if fresh
 
-                $log_file = $filename . '.txt';
+            $log_file = $filename . '.txt';
 
             global $wpdb;
             $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $stream . "' and post_type='channel' LIMIT 0,1" );
@@ -2878,6 +2897,10 @@ align="absmiddle" border="0">Start Broadcasting</a>
             imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
             imagejpeg($tmp, $thumbFilename, 95);
 
+             global $wpdb;
+             $table_name3 = $wpdb->prefix . "vw_lsrooms";
+             $sql="UPDATE `$table_name3` set status='1' where name ='$stream'";
+             $wpdb->query($sql);
 
         }
 
