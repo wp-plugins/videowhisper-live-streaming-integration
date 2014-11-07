@@ -32,8 +32,8 @@ VideoWhisper Live Streaming plugin allows site users and admins to broadcast liv
 * video archive support with [Video Share VOD](http://wordpress.org/plugins/video-share-vod/  "Video Share / Video On Demand") WordPress Plugin
 
 For more details see the [WordPress Live Video Streaming](http://www.videowhisper.com/?p=WordPress+Live+Streaming "WordPress Live Video Streaming") Plugin Homepage ...
-  
-Use this software for setting up features like on Twitch TV, Justin TV, UStream tv, Mogulus, LiveStream, Stickam, Blog tv, Live yahoo or their clones and alternatives.  
+
+Use this software for setting up features like on Twitch TV, Justin TV, UStream tv, Mogulus, LiveStream, Stickam, Blog tv, Live yahoo or their clones and alternatives.
 
 Includes a widget that can display online broadcasters and their show names.
 
@@ -53,11 +53,11 @@ If BuddyPress is installed this will add a Live Stream tab to the group where us
 This plugin has requirements beyond regular WordPress hosting specifications: a RTMP host is needed for persistent connections to manage live interactions and streaming. More details about this, including solutions are provided on the Installation section pages.
 
 == Installation ==
-* See latest version instructions on plugin homepage: 
+* See latest version instructions on plugin homepage:
 http://www.videowhisper.com/?p=WordPress+Live+Streaming
-* Before installing this make sure all hosting requirements are met: 
+* Before installing this make sure all hosting requirements are met:
 http://www.videowhisper.com/?p=Requirements
-* Install the RTMP application using these instructions: 
+* Install the RTMP application using these instructions:
 http://www.videowhisper.com/?p=RTMP+Applications
 * Install from repository or copy this plugin folder to your wordpress installation in your plugins folder. You should obtain wp-content/plugins/videowhisper-live-streaming-integration .
 * Enable the plugin from Wordpress admin area and fill the "Settings", including rtmp address there.
@@ -73,7 +73,7 @@ http://www.videowhisper.com/?p=RTMP+Applications
 5. Channels listing with AJAX live updates
 
 == Desktop Sharing / Screen Broadcasting ==
-If your users want to broadcast their screen (when playing a game, using a program, tutoring various computer skills) they can do that easily just by using a screen sharing driver that simulates a webcam from desktop contents. Read more on http://www.videochat-scripts.com/screen-sharing-with-flash-video-chat-software/ . 
+If your users want to broadcast their screen (when playing a game, using a program, tutoring various computer skills) they can do that easily just by using a screen sharing driver that simulates a webcam from desktop contents. Read more on http://www.videochat-scripts.com/screen-sharing-with-flash-video-chat-software/ .
 
 == Documentation ==
 * Plugin Homepage : http://www.videowhisper.com/?p=WordPress+Live+Streaming
@@ -144,7 +144,7 @@ More information, the latest updates, other plugins and non-WordPress editions c
 * Widget includes counter of room participants for each room
 
 = 4.05 =
-* Integrated latest application versions (with broadcaster application v4.05) that include P2P. 
+* Integrated latest application versions (with broadcaster application v4.05) that include P2P.
 * Added more settings to control P2P / RTMP streaming, secure token if enabled, bandwidth detection.
 * Fixed some possible security vulnerabilites for hosts with magic_quotes Off.
 

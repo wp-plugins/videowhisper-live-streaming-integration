@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.2
+Version: 4.32.3
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -23,7 +23,6 @@ if (!class_exists("VWliveStreaming"))
             // do not generate any output here
 
             flush_rewrite_rules();
-
         }
 
         function settings_link($links) {
@@ -42,9 +41,13 @@ if (!class_exists("VWliveStreaming"))
             add_filter( "the_content", array('VWliveStreaming','channel_page'));
             add_filter( 'query_vars', array('VWliveStreaming','channel_query_vars'));
 
-
             add_filter('pre_get_posts', array('VWliveStreaming','pre_get_posts'));
 
+
+			add_filter('manage_channel_posts_columns', array( 'VWliveStreaming', 'columns_head_channel') , 10);
+			add_filter( 'manage_edit-channel_sortable_columns', array('VWliveStreaming', 'columns_register_sortable') );
+			add_action('manage_channel_posts_custom_column', array( 'VWliveStreaming', 'columns_content_channel') , 10, 2);
+			add_filter( 'request', array('VWliveStreaming', 'duration_column_orderby') );
 
             //shortcodes
             add_shortcode('videowhisper_livesnapshots', array( 'VWliveStreaming', 'shortcode_livesnapshots'));
@@ -85,7 +88,6 @@ if (!class_exists("VWliveStreaming"))
 
 
             $installed_ver = get_option( "vwls_db_version" );
-
 
             if( $installed_ver != $vw_db_version )
             {
@@ -165,7 +167,7 @@ if (!class_exists("VWliveStreaming"))
         {
 
             //add channels to post listings
-            if(is_category() || is_tag()) 
+            if(is_category() || is_tag())
                 {
                 $query_type = get_query_var('post_type');
 
@@ -180,7 +182,7 @@ if (!class_exists("VWliveStreaming"))
                 {
                     $query_type = array('post', 'channel');
                 }
-                
+
                 $query->set('post_type', $query_type);
             }
 
@@ -297,14 +299,14 @@ if (!class_exists("VWliveStreaming"))
         function channelInvalid( $channel, $broadcast =false)
         {
             //check if online channel is invalid for any reason
-			
+
 			if (!function_exists('fm'))
             {
-            
+
             function fm($t, $item = null)
             {
               $img = '';
-              
+
               if ($item)
               {
               $options = get_option('VWliveStreamingOptions');
@@ -316,12 +318,11 @@ if (!class_exists("VWliveStreaming"))
               if ($age=='LIVE') $noCache='?'.((time()/10)%100);
 
               if (file_exists($thumbFilename)) $img = '<IMG ALIGN="RIGHT" src="' . VWliveStreaming::path2url($thumbFilename) . $noCache .'" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"><br style="clear:both">';
-              }  
-                       
+              }
+
                 //format message
-                return  '<div class="w-actionbox color_primary">'. $t . $img . '</div>';
+                return  '<div class="w-actionbox color_alternate">'. $t . $img . '</div><br>';
             }
-			
 			}
 
             $channel = sanitize_file_name($channel);
@@ -335,7 +336,6 @@ if (!class_exists("VWliveStreaming"))
 
             if (!$channelR) if ($broadcast) return; //first broadcast
                 else return fm('Channel was not found! Live channel is only accessible on broadcast.', $channelR);
-
 
                 $options = get_option('VWliveStreamingOptions');
 
@@ -355,7 +355,7 @@ if (!class_exists("VWliveStreaming"))
                 if ($maximumWatchTime) if ($channelR->wtime >= $maximumWatchTime) return fm('Channel watch time exceeded!', $channelR);
 
                 if (!$options['alwaysWatch'])
-                    if (time() - $channelR->edate > 30) 
+                    if (time() - $channelR->edate > 30)
                     {
                     $age = VWliveStreaming::format_age(time() -  $channelR->edate);
                     return fm('Channel is currently offline. Try again later! Time offline: ' . $age, $channelR );
@@ -370,7 +370,6 @@ if (!class_exists("VWliveStreaming"))
 
         function shortcode_manage()
         {
-
             //can user create room?
             $options = get_option('VWliveStreamingOptions');
 
@@ -577,7 +576,6 @@ if (!class_exists("VWliveStreaming"))
 
 
                     $htmlCode .= '<tr><td><a href="' . get_permalink($channel->ID) . '"><h4>' . $channel->post_title . '</h4>' .  get_the_post_thumbnail($channel->ID, 'medium') . '</a>';
-
 
                     if ($channelR) $htmlCode .= '<br> Broadcast: ' . VWliveStreaming::format_time($channelR->btime) . ' / ' . VWliveStreaming::format_time($maximumBroadcastTime) .  '<br> Watch: ' . VWliveStreaming::format_time($channelR->wtime) . ' / ' . VWliveStreaming::format_time($maximumWatchTime);
 
@@ -988,7 +986,7 @@ HTMLCODE;
 
                 if (!$stream) return "<div class='error'>Can't load broadcasting details: Missing channel name!</div>";
 
-                if ($postID>0 && $options['postChannels']) 
+                if ($postID>0 && $options['postChannels'])
                 {
                     $channel = get_post( $postID );
                     if ($channel->post_author != $current_user->ID) return "<div class='error'>Only owner can broadcast (#$postID)!</div>";
@@ -1273,15 +1271,73 @@ HTMLCODE;
                 $attach_id = wp_insert_attachment( $attachment, $thumbFilename, $postID );
                 set_post_thumbnail($postID, $attach_id);
 
-
                 require_once( ABSPATH . 'wp-admin/includes/image.php' );
                 $attach_data = wp_generate_attachment_metadata( $attach_id, $thumbFilename );
                 wp_update_attachment_metadata( $attach_id, $attach_data );
             }
 
-
             return $addCode . $content;
         }
+
+
+		function columns_head_channel($defaults) {
+			$defaults['featured_image'] = 'Snapshot';
+			$defaults['edate'] = 'Last Online';
+
+			return $defaults;
+		}
+
+		function columns_register_sortable( $columns ) {
+			$columns['edate'] = 'edate';
+
+			return $columns;
+		}
+
+
+		function columns_content_channel($column_name, $post_id)
+		{
+
+			if ($column_name == 'featured_image')
+			{
+				$post_thumbnail_id = get_post_thumbnail_id($post_id);
+
+				if ($post_thumbnail_id)
+				{
+					$post_featured_image = wp_get_attachment_image_src($post_thumbnail_id, 'featured_preview');
+
+					if ($post_featured_image)
+					{
+						echo '<img src="' . $post_featured_image[0] . '" />';
+					}
+
+				}
+			}
+
+			if ($column_name == 'edate')
+			{
+				$edate = get_post_meta($post_id, 'edate', true);
+				if ($edate)
+				{
+					echo ' ' . VWliveStreaming::format_age(time() - $edate);
+
+				}
+
+
+			}
+
+		}
+
+		function duration_column_orderby( $vars ) {
+			if ( isset( $vars['orderby'] ) && 'edate' == $vars['orderby'] ) {
+				$vars = array_merge( $vars, array(
+						'meta_key' => 'edate',
+						'orderby' => 'meta_value_num'
+					) );
+			}
+
+			return $vars;
+		}
+
 
         function channel_query_vars( $query_vars ){
             // array of recognized query vars
@@ -1367,8 +1423,7 @@ HTMLCODE;
         function vwls_channels() //list channels
             {
 
-
-
+            //ajax called
             $options = get_option('VWliveStreamingOptions');
 
             $perPage = (int) $_GET['pp'];
@@ -1450,11 +1505,8 @@ BODY
         }
 
 
-
-
         function vwls_trans()
         {
-
 
             ob_clean();
 
@@ -2017,15 +2069,15 @@ function getDirectorySize($path)
   $totalsize = 0;
   $totalcount = 0;
   $dircount = 0;
- 
+
   if (!file_exists($path))
   {
   $total['size'] = $totalsize;
   $total['count'] = $totalcount;
   $total['dircount'] = $dircount;
-  return $total;    
+  return $total;
   }
- 
+
   if ($handle = opendir ($path))
   {
     while (false !== ($file = readdir($handle)))
@@ -2058,7 +2110,7 @@ function getDirectorySize($path)
 
 function sizeFormat($size)
 {
-	//echo $size; 
+	//echo $size;
     if($size<1024)
     {
         return $size." bytes";
@@ -2079,7 +2131,7 @@ function sizeFormat($size)
         return $size." GB";
     }
 
-}  
+}
 
 
 
@@ -2604,7 +2656,7 @@ Settings for video subscribers that watch the live channels using watch or plain
 
                 $items =  $wpdb->get_results("SELECT * FROM `$table_name3` ORDER BY edate DESC LIMIT 0, 200");
                 echo "<table class='wp-list-table widefat'><thead><tr><th>Channel</th><th>Last Access</th><th>Broadcast Time</th><th>Watch Time</th><th>Last Reset</th><th>Type</th><th>Logs</th></tr></thead>";
-                
+
 
 
                 if ($items) foreach ($items as $item)
@@ -2663,7 +2715,7 @@ Settings for video subscribers that watch the live channels using watch or plain
                         echo "</th><td>". VWliveStreaming::format_age(time() - $item->edate)."</td><td>". VWliveStreaming::format_time($item->btime) . "</td><td>". VWliveStreaming::format_time($item->wtime)."</td><td>" . VWliveStreaming::format_age(time() - $item->rdate)."</td><td>".($item->type==2?"Premium":"Standard")."</td>";
 
 //channel text logs
-$upload_c = VWliveStreaming::getDirectorySize($options['uploadsPath'] . '/'.$item->name); 
+$upload_c = VWliveStreaming::getDirectorySize($options['uploadsPath'] . '/'.$item->name);
 $upload_size = VWliveStreaming::sizeFormat($upload_c['size']);
 $logsurl = VWliveStreaming::path2url($options['uploadsPath'] . '/'.$item->name);
 
@@ -2683,12 +2735,12 @@ echo '<td>'."<a target='_blank' href='$logsurl'>$upload_size ($upload_c[count] f
 ?>
 <p>This page shows latest accessed channels (maximum 200).</p>
                 <p>External players and encoders (if enabled) are not monitored or controlled by this plugin, unless special <a href="http://www.videowhisper.com/?p=RTMP-Session-Control">rtmp side session control</a> is available.</p>
-                
-                
+
+
                 <?php
-                
+
                 //channel text logs
-$upload_c = VWliveStreaming::getDirectorySize($options['uploadsPath'] ); 
+$upload_c = VWliveStreaming::getDirectorySize($options['uploadsPath'] );
 $upload_size = VWliveStreaming::sizeFormat($upload_c['size']);
 $logsurl = VWliveStreaming::path2url($options['uploadsPath']);
 
@@ -2837,6 +2889,13 @@ align="absmiddle" border="0">Start Broadcasting</a>
             else $sql="UPDATE `$table_name` set edate=$ztime, room='$room', username='$username' where id ='".$session->id."'";
             $wpdb->query($sql);
 
+
+            if ($broadcaster)
+            {
+                $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $room . "' and post_type='channel' LIMIT 0,1" );
+                update_post_meta($postID, 'edate', $ztime);
+            }
+
             $exptime=$ztime-30;
             $sql="DELETE FROM `$table_name` WHERE edate < $exptime";
             $wpdb->query($sql);
@@ -2880,6 +2939,7 @@ align="absmiddle" border="0">Start Broadcasting</a>
             exec($cmd, $output, $returnvalue);
             exec("echo '$cmd' >> $log_file.cmd", $output, $returnvalue);
 
+            //failed
             if (!file_exists($filename)) return;
 
             //generate thumb
@@ -2897,7 +2957,6 @@ align="absmiddle" border="0">Start Broadcasting</a>
             imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
             imagejpeg($tmp, $thumbFilename, 95);
 
-             global $wpdb;
              $table_name3 = $wpdb->prefix . "vw_lsrooms";
              $sql="UPDATE `$table_name3` set status='1' where name ='$stream'";
              $wpdb->query($sql);
@@ -4259,7 +4318,6 @@ lt=last session time received (from web status script)
             die();
         }
     }
-
 
 }
 
