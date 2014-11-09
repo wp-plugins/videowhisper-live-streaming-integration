@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.4
+Version: 4.32.5
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -1688,13 +1688,9 @@ a {
 			$root_url = get_bloginfo( "url" ) . "/";
 
 			//clean recordings
-			$exptime=time()-30;
-			$sql="DELETE FROM `$table_name` WHERE edate < $exptime";
-			$wpdb->query($sql);
-			$wpdb->flush();
-			$sql="DELETE FROM `$table_name2` WHERE edate < $exptime";
-			$wpdb->query($sql);
-			$wpdb->flush();
+			VWliveStreaming::cleanSessions(0);
+			VWliveStreaming::cleanSessions(1);
+
 
 			$items =  $wpdb->get_results("SELECT * FROM `$table_name` where status='1' and type='1'");
 
@@ -1740,14 +1736,8 @@ Streaming Software</a>.</p></div>';
 			$root_url = get_bloginfo( "url" ) . "/";
 
 			//clean recordings
-			$exptime=time()-30;
-			$sql="DELETE FROM `$table_name` WHERE edate < $exptime";
-			$wpdb->query($sql);
-			$wpdb->flush();
-
-			$sql="DELETE FROM `$table_name2` WHERE edate < $exptime";
-			$wpdb->query($sql);
-			$wpdb->flush();
+			VWliveStreaming::cleanSessions(0);
+			VWliveStreaming::cleanSessions(1);
 
 			$items =  $wpdb->get_results("SELECT * FROM `$table_name` where status='1' and type='1'");
 
@@ -1861,6 +1851,11 @@ Software</a>.</p></div>';
 				'soundCodec'=> 'Speex',
 				'soundQuality' => '9',
 				'micRate' => '22',
+
+				'onlineExpiration0' =>'310',
+				'onlineExpiration1' =>'40',
+				'parameters' => '&bufferLive=1&bufferFull=1&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&disableVideo=0&disableChat=0&disableUsers=0&fillWindow=0&adsTimeout=15000&externalInterval=360000&statusInterval=300000',
+				'parametersBroadcaster' => '&bufferLive=2&bufferFull=2&showCamSettings=1&advancedCamSettings=1&configureSource=1&generateSnapshots=1&snapshotsTime=60000&room_limit=500&showTimer=1&showCredit=1&disconnectOnTimeout=1&externalInterval=360000&statusInterval=30000',
 
 				'overLogo' => $root_url .'wp-content/plugins/videowhisper-live-streaming-integration/ls/logo.png',
 				'overLink' => 'http://www.videowhisper.com',
@@ -2630,6 +2625,8 @@ published for recording).</p>
 <?php
 				break;
 			case 'broadcaster':
+				$options['parametersBroadcaster'] = htmlentities(stripslashes($options['parametersBroadcaster']));
+
 ?>
 <h3>Video Broadcasting</h3>
 Options for video broadcasting.
@@ -2756,6 +2753,17 @@ Settings for web based broadcasting interface. Do not apply for external apps.
   <option value="0" <?php echo $options['onlyVideo']?"":"onlyVideo"?>>No</option>
   <option value="1" <?php echo $options['onlyVideo']?"onlyVideo":""?>>Yes</option>
 </select>
+
+<h4>Parameters for Broadcaster Interface</h4>
+<textarea name="parametersBroadcaster" id="parametersBroadcaster" cols="64" rows="8"><?php echo $options['parametersBroadcaster']?></textarea>
+<br>For more details see <a href="http://www.videowhisper.com/?p=php+live+streaming#integrate">PHP Live Streaming documentation</a>.
+<br>Ex: &snapshotsTime=60000&room_limit=500&externalInterval=360000&statusInterval=30000
+
+<h4>Online Expiration</h4>
+<p>How long to consider broadcaster online if no web status update occurs.</p>
+<input name="onlineExpiration1" type="text" id="onlineExpiration1" size="5" maxlength="6" value="<?php echo $options['onlineExpiration1']?>"/>s
+<br>Should be 10s higher than maximum statusInterval (ms) configured in parameters. A higher statusInterval decreases web server load caused by status updates.
+
 <?php
 				break;
 			case 'premium':
@@ -2818,6 +2826,8 @@ Options for premium channels. Premium channels have special settings and feature
 <?php
 				break;
 			case 'watcher':
+				$options['parameters'] = htmlentities(stripslashes($options['parameters']));
+
 ?>
 <h3>Video Watcher</h3>
 Settings for video subscribers that watch the live channels using watch or plain video interface.
@@ -2831,7 +2841,15 @@ Settings for video subscribers that watch the live channels using watch or plain
 <textarea name="watchList" cols="64" rows="3" id="watchList"><?php echo $options['watchList']?>
 </textarea>
 
+<h4>Parameters for Watch and Video Interfaces</h4>
+<textarea name="parameters" id="parameters" cols="64" rows="8"><?php echo $options['parameters']?></textarea>
+<br>For more details see <a href="http://www.videowhisper.com/?p=php+live+streaming#integrate">PHP Live Streaming documentation</a>.
+<br>Ex: &externalInterval=360000&statusInterval=30000
 
+<h4>Online Expiration</h4>
+<p>How long to consider viewer online if no web status update occurs.</p>
+<input name="onlineExpiration0" type="text" id="onlineExpiration0" size="5" maxlength="6" value="<?php echo $options['onlineExpiration0']?>"/>s
+<br>Should be 10s higher than maximum statusInterval (ms) configured in parameters. A higher statusInterval decreases web server load caused by status updates.
 <?php
 
 				break;
@@ -2920,12 +2938,39 @@ Settings for video subscribers that watch the live channels using watch or plain
 				update_post_meta($postID, 'edate', $ztime);
 			}
 
-			$exptime=$ztime-30;
-			$sql="DELETE FROM `$table_name` WHERE edate < $exptime";
-			$wpdb->query($sql);
+			VWliveStreaming::cleanSessions($broadcaster);
 
 			$session = $wpdb->get_row($sqlS);
 			return $session;
+		}
+
+		function cleanSessions($broadcaster=0)
+		{
+			$options = get_option('VWliveStreamingOptions');
+
+			$ztime = time();
+			global $wpdb;
+
+			if ($broadcaster) $table_name = $wpdb->prefix . "vw_sessions";
+			else $table_name = $wpdb->prefix . "vwlw_sessions";
+
+			//do not clean more often than 25s (mysql table invalidate)
+			$lastClean = 0; $cleanNow = false;
+			$lastCleanFile = $options['uploadsPath'] . 'lastclean' . $broadcaster . '.txt';
+
+			if (file_exists($lastCleanFile)) $lastClean = file_get_contents($lastCleanFile);
+			if (!$lastClean) $cleanNow = true;
+			else if ($ztime - $lastClean > 25) $cleanNow = true;
+
+				if ($cleanNow)
+				{
+					if (!$options['onlineExpiration' . $broadcaster]) $options['onlineExpiration' . $broadcaster] = 310;
+					$exptime=$ztime-$options['onlineExpiration' . $broadcaster];
+					$sql="DELETE FROM `$table_name` WHERE edate < $exptime";
+					$wpdb->query($sql);
+					file_put_contents($lastCleanFile, $ztime);
+				}
+
 		}
 
 		function rtmpSnapshot($session)
@@ -3386,9 +3431,6 @@ Settings for video subscribers that watch the live channels using watch or plain
 
 				}
 
-
-
-
 				$s = $username;
 				$u = $username;
 				$r = $roomName;
@@ -3398,11 +3440,13 @@ Settings for video subscribers that watch the live channels using watch or plain
 				$userType=0;
 				if ($loggedin) VWliveStreaming::webSessionSave($username, 0); //approve session for rtmp check
 
+				$parameters = html_entity_decode($options['parameters']);
+
 				?>firstParameter=fix&server=<?php echo $rtmp_server?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&serverRTMFP=<?php echo urlencode($serverRTMFP)?>&p2pGroup=<?php echo
 				$p2pGroup?>&supportRTMP=<?php echo $supportRTMP?>&supportP2P=<?php echo $supportP2P?>&alwaysRTMP=<?php echo $alwaysRTMP?>&alwaysP2P=<?php echo $alwaysP2P?>&disableBandwidthDetection=<?php echo
-				$disableBandwidthDetection?>&bufferLive=0.5&bufferFull=8&welcome=Welcome!&username=<?php echo $username?>&userType=<?php echo $userType?>&msg=<?php echo $msg?>&loggedin=<?php echo
-				$loggedin?>&visitor=<?php echo $visitor?>&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo
-				urlencode($options['overLink'])?>&loadstatus=1&debug=<?php echo $debug?><?php
+				$disableBandwidthDetection?>&username=<?php echo $username?>&userType=<?php echo $userType?>&msg=<?php echo $msg?>&loggedin=<?php echo
+				$loggedin?>&visitor=<?php echo $visitor?>&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo
+				urlencode($options['overLink']); echo $parameters; ?>&loadstatus=1&debug=<?php echo $debug;  ?><?php
 				break;
 
 			case 'vs_login':
@@ -3451,11 +3495,7 @@ Settings for video subscribers that watch the live channels using watch or plain
 
 				if ($username==$roomName) $username.="_".rand(10,99);//allow viewing own room - session names must be different
 
-
-
 				$ztime=time();
-
-
 
 				//check room
 				global $wpdb;
@@ -3506,7 +3546,6 @@ Settings for video subscribers that watch the live channels using watch or plain
 
 				}
 
-
 				$s = $username;
 				$u = $username;
 				$m = '';
@@ -3528,12 +3567,14 @@ layoutEND;
 
 				if (!$welcome) $welcome="Welcome on <B>".$roomName."</B> live streaming channel!";
 
+				$parameters = html_entity_decode($options['parameters']);
+
 				?>firstParameter=fix&server=<?php echo $rtmp_server?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&serverRTMFP=<?php echo urlencode($serverRTMFP)?>&p2pGroup=<?php echo
 				$p2pGroup?>&supportRTMP=<?php echo $supportRTMP?>&supportP2P=<?php echo $supportP2P?>&alwaysRTMP=<?php echo $alwaysRTMP?>&alwaysP2P=<?php echo $alwaysP2P?>&disableBandwidthDetection=<?php echo
-				$disableBandwidthDetection?>&bufferLive=1&bufferFull=1&welcome=<?php echo urlencode($welcome)?>&username=<?php echo $username?>&userType=<?php echo $userType?>&msg=<?php echo $msg?>&loggedin=<?php
-				echo $loggedin?>&visitor=<?php echo $visitor?>&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo
-				urlencode($options['overLink'])?>&disableVideo=0&disableChat=0&disableUsers=0&layoutCode=<?php echo urlencode($layoutCode)?>&fillWindow=0&filterRegex=<?php echo $filterRegex?>&filterReplace=<?php
-				echo $filterReplace?>&ws_ads=<?php echo urlencode($options['adServer']); ?>&adsTimeout=15000&adsInterval=<?php echo $options['adsInterval']; ?>&loadstatus=1<?php
+				$disableBandwidthDetection?>&welcome=<?php echo urlencode($welcome)?>&username=<?php echo $username?>&userType=<?php echo $userType?>&msg=<?php echo $msg?>&loggedin=<?php
+				echo $loggedin?>&visitor=<?php echo $visitor?>&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo
+				urlencode($options['overLink'])?>&layoutCode=<?php echo urlencode($layoutCode)?>&filterRegex=<?php echo $filterRegex?>&filterReplace=<?php
+				echo $filterReplace?>&ws_ads=<?php echo urlencode($options['adServer']); ?>&adsInterval=<?php echo $options['adsInterval']; echo $parameters; ?>&loadstatus=1<?php
 				break;
 
 			case 'vc_login':
@@ -3690,18 +3731,18 @@ layoutEND;
 				$chatlog="The transcript log of this chat is available at <U><A HREF=\"$chatlog_url\" TARGET=\"_blank\">$chatlog_url</A></U>.";
 				if (!$welcome) $welcome="Welcome to broadcasting interface for channel '$room'! . $chatlog";
 
+				$parameters = html_entity_decode($options['parametersBroadcaster']);
 
 				?>firstParameter=fix&server=<?php echo $rtmp_server?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&serverRTMFP=<?php echo urlencode($serverRTMFP)?>&p2pGroup=<?php
 				echo $p2pGroup?>&supportRTMP=<?php echo $supportRTMP?>&supportP2P=<?php echo $supportP2P?>&alwaysRTMP=<?php echo $alwaysRTMP?>&alwaysP2P=<?php echo $alwaysP2P?>&disableBandwidthDetection=<?php echo
 				$disableBandwidthDetection?>&room=<?php echo $username?>&welcome=<?php echo urlencode($welcome); ?>&username=<?php echo $username?>&userlabel=<?php echo $userlabel?>&overLogo=<?php echo
 				urlencode($options['overLogo'])?>&overLink=<?php echo urlencode($options['overLink'])?>&userType=3&webserver=&msg=<?php echo $msg?>&loggedin=<?php echo $loggedin?>&linkcode=<?php echo
 				urlencode($linkcode)?>&embedcode=<?php echo urlencode($embedcode)?>&embedvcode=<?php echo urlencode($embedvcode)?>&imagecode=<?php echo
-				urlencode($imagecode)?>&room_limit=&showTimer=1&showCredit=1&disconnectOnTimeout=1&camWidth=<?php echo $camRes[0];?>&camHeight=<?php echo $camRes[1];?>&camFPS=<?php echo
+				urlencode($imagecode)?>&camWidth=<?php echo $camRes[0];?>&camHeight=<?php echo $camRes[1];?>&camFPS=<?php echo
 				$options['camFPS']?>&camBandwidth=<?php echo $camBandwidth?>&videoCodec=<?php echo $options['videoCodec']?>&codecProfile=<?php echo $options['codecProfile']?>&codecLevel=<?php echo
 				$options['codecLevel']?>&soundCodec=<?php echo $options['soundCodec']?>&soundQuality=<?php echo $options['soundQuality']?>&micRate=<?php echo
-				$options['micRate']?>&bufferLive=2&bufferFull=2&showCamSettings=1&advancedCamSettings=1&camMaxBandwidth=<?php echo
-				$camMaxBandwidth?>&configureSource=1&generateSnapshots=1&snapshotsTime=60000&onlyVideo=<?php echo $options['onlyVideo']?>&noEmbeds=<?php echo $options['noEmbeds']?>&loadstatus=1&debug=<?php echo
-				$debug?><?php
+				$options['micRate']?>&camMaxBandwidth=<?php echo
+				$camMaxBandwidth?>&onlyVideo=<?php echo $options['onlyVideo']?>&noEmbeds=<?php echo $options['noEmbeds'];  echo $parameters; ?>&loadstatus=1&debug=<?php echo $debug; ?><?php
 				break;
 
 			case 'vc_chatlog':
@@ -3816,10 +3857,7 @@ lt=last session time received from this script in (milliseconds)
 						$wpdb->query($sql);
 					}
 
-					$exptime=$ztime-30;
-					$sql="DELETE FROM `$table_name` WHERE edate < $exptime";
-					$wpdb->query($sql);
-
+					VWliveStreaming::cleanSessions(0);
 
 					//room usage
 					// options in minutes
@@ -4240,9 +4278,7 @@ cam, mic = 0 none, 1 disabled, 2 enabled
 						$wpdb->query($sql);
 					}
 
-					$exptime=$ztime-30;
-					$sql="DELETE FROM `$table_name` WHERE edate < $exptime";
-					$wpdb->query($sql);
+					VWliveStreaming::cleanSessions(1);
 
 					//room usage
 					// options in minutes
