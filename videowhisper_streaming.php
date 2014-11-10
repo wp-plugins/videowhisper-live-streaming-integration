@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.5
+Version: 4.32.6
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -682,10 +682,10 @@ HTMLCODE;
 		function shortcode_channels($atts)
 		{
 			$options = get_option('VWliveStreamingOptions');
-			$atts = shortcode_atts(array('perPage'=>$options['perPage']), $atts, 'videowhisper_channels');
+			$atts = shortcode_atts(array('perPage'=>$options['perPage'], 'ban' => 0), $atts, 'videowhisper_channels');
 
 			$ajaxurl = admin_url() . 'admin-ajax.php?action=vwls_channels&pp=' . $atts['perPage'];
-
+			if ($atts['ban']) $ajaxurl .= '&ban=' . $atts['ban'];
 
 			$htmlCode = <<<HTMLCODE
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
@@ -1300,18 +1300,24 @@ HTMLCODE;
 
 			if ($column_name == 'featured_image')
 			{
-				$post_thumbnail_id = get_post_thumbnail_id($post_id);
 
-				if ($post_thumbnail_id)
+				global $wpdb;
+				$postName = $wpdb->get_var( "SELECT post_name FROM $wpdb->posts WHERE ID = '" . $post_id . "' and post_type='channel' LIMIT 0,1" );
+
+				if ($postName)
 				{
-					$post_featured_image = wp_get_attachment_image_src($post_thumbnail_id, 'featured_preview');
+					$options = get_option('VWliveStreamingOptions');
+					$dir = $options['uploadsPath']. "/_thumbs";
+					$thumbFilename = "$dir/" . $postName . ".jpg";
 
-					if ($post_featured_image)
-					{
-						echo '<img src="' . $post_featured_image[0] . '" />';
-					}
+					$url = VWliveStreaming::roomURL($postName);
+
+					if (file_exists($thumbFilename)) echo '<a href="' . $url . '"><IMG src="' . VWliveStreaming::path2url($thumbFilename) .'" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
 
 				}
+
+
+
 			}
 
 			if ($column_name == 'edate')
@@ -1425,6 +1431,15 @@ HTMLCODE;
 		function vwls_channels() //list channels
 			{
 
+			//channel meta:
+			//edate s
+			//btime s
+			//wtime s
+			//viewers n
+			//maxViewers n
+			//maxDate s
+			//hasSnapshot 1
+
 			//ajax called
 			$options = get_option('VWliveStreamingOptions');
 
@@ -1434,23 +1449,25 @@ HTMLCODE;
 			$page = (int) $_GET['p'];
 			$offset = $page * $perPage;
 
+			$ban = (int) $_GET['ban'];
+
 			ob_clean();
 
 			$dir = $options['uploadsPath']. "/_thumbs";
 
-
 			global $wpdb;
 			$table_name3 = $wpdb->prefix . "vw_lsrooms";
-
 
 			$items =  $wpdb->get_results("SELECT * FROM `$table_name3` WHERE status=1 ORDER BY edate DESC LIMIT $offset, ". $perPage);
 			if ($items) foreach ($items as $item)
 				{
 					$age = VWliveStreaming::format_age(time() -  $item->edate);
 
+					if ($ban) $banLink = '<a class = "button" href="admin.php?page=live-streaming-live&ban=' . urlencode( $item->name ) . '">Ban This Channel</a><br>';
+
 					echo '<div class="videowhisperChannel">';
-					echo '<div class="videowhisperTitle">' . $item->name. '</div>';
-					echo '<div class="videowhisperTime">' . $age . '</div>';
+					echo '<div class="videowhisperTitle">' . $item->name  . '</div>';
+					echo '<div class="videowhisperTime">' . $banLink . $age . '</div>';
 
 					$thumbFilename = "$dir/" . $item->name . ".jpg";
 
@@ -1465,6 +1482,7 @@ HTMLCODE;
 				}
 
 			$ajaxurl = admin_url() . 'admin-ajax.php?action=vwls_channels&pp='.$perPage;
+			if ($ban) $ajaxurl .= '&ban=' . $ban;
 
 			echo "<BR>";
 			if ($page>0) echo ' <a class="videowhisperButton g-btn type_secondary" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page-1). '\'; loadChannels();">Previous</a> ';
@@ -1744,7 +1762,7 @@ Streaming Software</a>.</p></div>';
 			echo "<ul>";
 			if ($items) foreach ($items as $item)
 				{
-					$count =  $wpdb->get_results("SELECT count(*) as no FROM `$table_name2` where status='1' and type='1' and room='".$item->room."'");
+					$count =  $wpdb->get_results("SELECT count(id) as no FROM `$table_name2` where status='1' and type='1' and room='".$item->room."'");
 
 					$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $item->room . "' and post_type='channel' LIMIT 0,1" );
 					if ($postID) $url = get_post_permalink($postID);
@@ -2133,7 +2151,7 @@ HTMLCODE
 			add_menu_page('Live Streaming', 'Live Streaming', 'manage_options', 'live-streaming', array('VWliveStreaming', 'options'), 'dashicons-video-alt',82);
 			add_submenu_page("live-streaming", "Live Streaming", "Settings", 'manage_options', "live-streaming", array('VWliveStreaming', 'options'));
 			add_submenu_page("live-streaming", "Live Streaming", "Statistics", 'manage_options', "live-streaming-stats", array('VWliveStreaming', 'adminStats'));
-			add_submenu_page("live-streaming", "Live Streaming", "Live", 'manage_options', "live-streaming-live", array('VWliveStreaming', 'adminLive'));
+			add_submenu_page("live-streaming", "Live Streaming", "Live & Ban", 'manage_options', "live-streaming-live", array('VWliveStreaming', 'adminLive'));
 			add_submenu_page("live-streaming", "Live Streaming", "Docs", 'manage_options', "live-streaming-docs", array('VWliveStreaming', 'adminDocs'));
 		}
 
@@ -2256,18 +2274,50 @@ HTMLCODE
 		function adminLive()
 		{
 			$options = get_option('VWliveStreamingOptions');
-			$root_url = get_bloginfo( "url" ) . "/";
 
-			$userName =  $options['userName']; if (!$userName) $userName='user_nicename';
-			global $current_user;
-			get_currentuserinfo();
-			if ($current_user->$userName) $username = $current_user->$userName;
-			$username = sanitize_file_name($username);
+			$ban = sanitize_file_name($_GET['ban']);
 
-			$broadcast_url = admin_url() . 'admin-ajax.php?action=vwls_broadcast&n=';
+			if ($ban)
+			{
+?>
+<h3>Banning Channel</h3>
+<?php
+				global $wpdb;
 
+				//delete post
+				$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $ban . "' and post_type='channel' LIMIT 0,1" );
+				if (!$postID) echo "<br>Channel post '$ban' not found!";
+				else
+				{
+					wp_delete_post($postID, true);
+					echo "<br>Channel post '$ban' was deleted.";
+				}
+
+				//delete room
+				$table_name = $wpdb->prefix . "vw_lsrooms";
+				$sql="DELETE FROM `$table_name` WHERE name = '$ban'";
+				$wpdb->query($sql);
+				echo "<br>Channel room '$ban' was deleted.";
+
+				//ban
+				$options['bannedNames'] .= ($options['bannedNames']?',':'') . $ban;
+				update_option('VWliveStreamingOptions', $options);
+				echo '<br>Current ban list: ' . $options['bannedNames'] . ' <a href="admin.php?page=live-streaming&tab=broadcaster" class="button button-primary">Edit</a>';
+			}
+
+			//broadcast link if allowed by settings
 			if ($options['userChannels']||$options['anyChannels'])
 			{
+
+				$root_url = get_bloginfo( "url" ) . "/";
+				$userName =  $options['userName']; if (!$userName) $userName='user_nicename';
+				global $current_user;
+				get_currentuserinfo();
+				if ($current_user->$userName) $username = $current_user->$userName;
+				$username = sanitize_file_name($username);
+
+				$broadcast_url = admin_url() . 'admin-ajax.php?action=vwls_broadcast&n=';
+
 ?>
 
 <h3>Channel '<?php echo $username; ?>': Go Live</h3>
@@ -2287,10 +2337,10 @@ align="absmiddle" border="0">Start Broadcasting</a>
 <?php
 			}
 ?>
-<h4>Recent Channels</h4>
+<h3>Recent Channels</h3>
 <?php
 
-			echo do_shortcode('[videowhisper_channels]');
+			echo do_shortcode('[videowhisper_channels ban="1"]');
 
 		}
 
@@ -2935,7 +2985,7 @@ Settings for video subscribers that watch the live channels using watch or plain
 			if ($broadcaster)
 			{
 				$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $room . "' and post_type='channel' LIMIT 0,1" );
-				update_post_meta($postID, 'edate', $ztime);
+				if ($postID) update_post_meta($postID, 'edate', $ztime);
 			}
 
 			VWliveStreaming::cleanSessions($broadcaster);
@@ -3026,9 +3076,20 @@ Settings for video subscribers that watch the live channels using watch or plain
 			imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
 			imagejpeg($tmp, $thumbFilename, 95);
 
+			//update room status to 1 or 2
 			$table_name3 = $wpdb->prefix . "vw_lsrooms";
-			$sql="UPDATE `$table_name3` set status='1' where name ='$stream'";
+
+			//detect tiny images without info
+			if (filesize($thumbFilename)>5000) $picType = 1;
+			else $picType = 2;
+
+			$sql="UPDATE `$table_name3` set status='$picType' where name ='$stream'";
 			$wpdb->query($sql);
+
+			//update post meta
+			$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . sanitize_file_name($stream) . "' and post_type='channel' LIMIT 0,1" );
+			if ($postID) update_post_meta($postID, 'hasSnapshot', $picType);
+
 
 		}
 
@@ -3127,10 +3188,19 @@ Settings for video subscribers that watch the live channels using watch or plain
 					imagecopyresampled($tmp, $src, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
 					imagejpeg($tmp, $thumbFilename, 95);
 
-					//update room status to 1
+					//update room status to 1 or 2
 					$table_name3 = $wpdb->prefix . "vw_lsrooms";
-					$sql="UPDATE `$table_name3` set status='1' where name ='$stream'";
+
+					//detect tiny images without info
+					if (filesize($thumbFilename)>5000) $picType = 1;
+					else $picType = 2;
+
+					$sql="UPDATE `$table_name3` set status='$picType' where name ='$stream'";
 					$wpdb->query($sql);
+
+					//update post meta
+					$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . sanitize_file_name($stream) . "' and post_type='channel' LIMIT 0,1" );
+					if ($postID) update_post_meta($postID, 'hasSnapshot', $picType);
 
 				}
 				?>loadstatus=1<?php
@@ -3606,7 +3676,6 @@ layoutEND;
 				$loggedin=0;
 				$msg="";
 
-
 				//username
 				if ($current_user->$userName) $username=urlencode($current_user->$userName);
 				sanV($username);
@@ -3723,9 +3792,6 @@ layoutEND;
 				$swfurl= plugin_dir_url(__FILE__) . "ls/live_watch.swf?n=".urlencode($username) . $swfurlp;
 				$swfurl2=plugin_dir_url(__FILE__) . "ls/live_video.swf?n=".urlencode($username) . $swfurlp;
 
-
-
-
 				$embedcode = VWliveStreaming::html_watch($username);
 				$embedvcode = VWliveStreaming::html_video($username);
 				$chatlog="The transcript log of this chat is available at <U><A HREF=\"$chatlog_url\" TARGET=\"_blank\">$chatlog_url</A></U>.";
@@ -3831,7 +3897,6 @@ lt=last session time received from this script in (milliseconds)
 
 				$ztime=time();
 
-
 				//room info
 				$sql = "SELECT * FROM $table_name3 where name='$r'";
 				$channel = $wpdb->get_row($sql);
@@ -3895,6 +3960,13 @@ lt=last session time received from this script in (milliseconds)
 						//update
 						$sql="UPDATE `$table_name3` set wtime = " . $channel->wtime . " where name='$r'";
 						$wpdb->query($sql);
+
+						//update post
+						$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $r . "' and post_type='channel' LIMIT 0,1" );
+						if ($postID)
+						{
+							update_post_meta($postID, 'wtime', $channel->wtime);
+						}
 					}
 
 
@@ -3932,10 +4004,10 @@ lt=last session time received from this script in (milliseconds)
 						$ztime=time();
 						$disconnect = "";
 
-						if ($ban =  VWliveStreaming::containsAny($s,$options['bannedNames'])) $disconnect = "Name banned ($s,$ban)!";
+						if ($ban =  VWliveStreaming::containsAny($s, $options['bannedNames'])) $disconnect = "Name banned ($s,$ban)!";
 
 
-						if ($user['role'] == '1') //broadcaster
+						if ($user['role'] == '1') //channel broadcaster
 							{
 
 							$table_name = $wpdb->prefix . "vw_sessions";
@@ -3944,15 +4016,15 @@ lt=last session time received from this script in (milliseconds)
 							$sqlS = "SELECT * FROM $table_name WHERE session='$s' AND status='1' ORDER BY type DESC, edate DESC LIMIT 0,1";
 							$session = $wpdb->get_row($sqlS);
 
-							if (!$session)
-							{
+							if (!$session) //insert as external type=2
+								{
 								$sql="INSERT INTO `$table_name` ( `session`, `username`, `room`, `message`, `sdate`, `edate`, `status`, `type`) VALUES ('$s', '$u', '$r', '$m', $ztime, $ztime, 1, 2)";
 								$wpdb->query($sql);
 								$session = $wpdb->get_row($sqlS);
 							}
 
 
-							if ($session->type == 2) //rtmp session
+							if ($session->type == 2) //external broadcaster: update here
 								{
 								//generate external snapshot for external broadcaster
 								VWliveStreaming::rtmpSnapshot($session);
@@ -3979,10 +4051,28 @@ lt=last session time received from this script in (milliseconds)
 								//update room
 								$sql="UPDATE `$table_name3` set edate=$ztime, btime = " . $channel->btime . " where id = '" . $channel->id. "'";
 								$wpdb->query($sql);
+
+								//update post
+								$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $r . "' and post_type='channel' LIMIT 0,1" );
+								if ($postID)
+								{
+									update_post_meta($postID, 'edate', $ztime);
+									update_post_meta($postID, 'btime', $channel->btime);
+
+									$table_name2 = $wpdb->prefix . "vw_sessions";
+									$viewers =  $wpdb->get_results("SELECT count(id) as no FROM `$table_name2` where status='1' and type='1' and room='" . $r . "'");
+
+									update_post_meta($postID, 'viewers', $viewers);
+									$maxViewers = get_post_meta($postID, 'maxViewers');
+									if ($viewers >= $maxViewers)
+									{
+										update_post_meta($postID, 'maxViewers', $viewers);
+										update_post_meta($postID, 'maxDate', $ztime);
+									}
+								}
 							}
 
-
-							//room usage
+							// room usage
 							// options in minutes
 							// mysql in s
 							// flash in ms (minimise latency errors)
@@ -4017,15 +4107,15 @@ lt=last session time received from this script in (milliseconds)
 							$sqlS = "SELECT * FROM $table_name WHERE session='$s' AND status='1' ORDER BY type DESC, edate DESC LIMIT 0,1";
 
 							$session = $wpdb->get_row($sqlS);
-							if (!$session)
-							{
+							if (!$session) //insert external viewer type=2
+								{
 								$sql="INSERT INTO `$table_name` ( `session`, `username`, `room`, `message`, `sdate`, `edate`, `status`, `type`) VALUES ('$s', '$u', '$r', '', $ztime, $ztime, 1, 2)";
 								$wpdb->query($sql);
 								$session = $wpdb->get_row($sqlS);
 							};
 
 
-							if ($session->type == '2') //rtmp session
+							if ($session->type == '2') //external viewer session: update here
 								{
 
 								$sqlC = "SELECT * FROM $table_name3 WHERE name='" . $session->room . "' LIMIT 0,1";
@@ -4047,6 +4137,14 @@ lt=last session time received from this script in (milliseconds)
 								//update
 								$sql="UPDATE `$table_name3` set wtime = " . $channel->wtime . " where id = '" . $channel->id. "'";
 								$wpdb->query($sql);
+
+								//update post
+								$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $r . "' and post_type='channel' LIMIT 0,1" );
+								if ($postID)
+								{
+									update_post_meta($postID, 'wtime', $channel->wtime);
+								}
+
 							}
 							// room usage
 							// options in minutes
@@ -4318,6 +4416,26 @@ cam, mic = 0 none, 1 disabled, 2 enabled
 						//update
 						$sql="UPDATE `$table_name3` set edate=$ztime, btime = " . $channel->btime . " where owner='$u' and name='$r'";
 						$wpdb->query($sql);
+
+						//update post
+						$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $r . "' and post_type='channel' LIMIT 0,1" );
+						if ($postID)
+						{
+							update_post_meta($postID, 'edate', $ztime);
+							update_post_meta($postID, 'btime', $channel->btime);
+
+							$table_name2 = $wpdb->prefix . "vw_lwsessions";
+							$viewers =  $wpdb->get_results("SELECT count(id) as no FROM `$table_name2` where status='1' and type='1' and room='" . $r . "'");
+
+							update_post_meta($postID, 'viewers', $viewers);
+							$maxViewers = get_post_meta($postID, 'maxViewers');
+							if ($viewers >= $maxViewers)
+							{
+								update_post_meta($postID, 'maxViewers', $viewers);
+								update_post_meta($postID, 'maxDate', $ztime);
+							}
+						}
+
 					}
 
 				}

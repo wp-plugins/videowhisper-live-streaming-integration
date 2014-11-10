@@ -94,6 +94,11 @@ More information, the latest updates, other plugins and non-WordPress editions c
 
 == Changelog ==
 
+= 4.32.6 =
+* Ban channel interface
+* Web server load optimisation settings
+* New channel meta
+
 = 4.32.1 =
 * Broadcasting application v4.32 (w. autopilot reconnect)
 
