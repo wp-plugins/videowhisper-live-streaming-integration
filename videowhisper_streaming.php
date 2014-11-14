@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.6
+Version: 4.32.7
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -682,33 +682,58 @@ HTMLCODE;
 		function shortcode_channels($atts)
 		{
 			$options = get_option('VWliveStreamingOptions');
-			$atts = shortcode_atts(array('perPage'=>$options['perPage'], 'ban' => 0), $atts, 'videowhisper_channels');
+			$atts = shortcode_atts(
+				array(
+					'perPage'=>$options['perPage'],
+					'ban' => '0',
+					'perrow' => '',
+					'order_by' => 'edate',
+					'category_id' => '',
+					'select_category' => '1',
+					'select_order' => '1',
+					'select_page' => '1',
+					'include_css' => '1',
+					'id' => ''
 
-			$ajaxurl = admin_url() . 'admin-ajax.php?action=vwls_channels&pp=' . $atts['perPage'];
+				), $atts, 'videowhisper_channels');
+
+			$id = $atts['id'];
+			if (!$id) $id = uniqid();
+
+			$ajaxurl = admin_url() . 'admin-ajax.php?action=vwls_channels&pp=' . $atts['perPage']. '&pr=' . $atts['perrow'] . '&ob=' . $atts['order_by'] . '&cat=' . $atts['category_id'] . '&sc=' . $atts['select_category'] . '&so=' . $atts['select_order'] . '&sp=' . $atts['select_page']. '&id=' .$id;
+
 			if ($atts['ban']) $ajaxurl .= '&ban=' . $atts['ban'];
 
 			$htmlCode = <<<HTMLCODE
-<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 <script>
-var aurl = '$ajaxurl';
+var aurl$id = '$ajaxurl';
+var \$j = jQuery.noConflict();
 
-	function loadChannels(){
-		$.ajax({
-			url: aurl,
+	function loadChannels$id(message){
+
+	if (message)
+	if (message.length > 0)
+	{
+	  \$j("#videowhisperChannels$id").html(message);
+	}
+
+
+		\$j.ajax({
+			url: aurl$id,
 			success: function(data) {
-				$("#videowhisperChannels").html(data);
+				\$j("#videowhisperChannels$id").html(data);
 			}
 		});
 	}
 
-	$(function(){
-		loadChannels();
-		setInterval("loadChannels()", 10000);
+	\$j(function(){
+		loadChannels$id();
+		setInterval("loadChannels$id()", 10000);
 	});
 
 </script>
 
-<div id="videowhisperChannels">
+<div id="videowhisperChannels$id">
     Loading Channels...
 </div>
 HTMLCODE;
@@ -1277,6 +1302,13 @@ HTMLCODE;
 				wp_update_attachment_metadata( $attach_id, $attach_data );
 			}
 
+			$maxViewers =  get_post_meta($postID, 'maxViewers', true);
+			if (!is_array($maxViewers))
+			{
+				$maxDate = get_post_meta($postID, 'maxDate', true);
+				$addCode .= __('Maximum viewers','videosharevod') . ': ' . $maxViewers . date("(F j, Y, g:i a)", $maxDate);
+			}
+
 			return $addCode . $content;
 		}
 
@@ -1430,6 +1462,7 @@ HTMLCODE;
 
 		function vwls_channels() //list channels
 			{
+			//ajax called
 
 			//channel meta:
 			//edate s
@@ -1440,54 +1473,188 @@ HTMLCODE;
 			//maxDate s
 			//hasSnapshot 1
 
-			//ajax called
 			$options = get_option('VWliveStreamingOptions');
 
+			//widget id
+			$id = sanitize_file_name($_GET['id']);
+
+			//pagination
 			$perPage = (int) $_GET['pp'];
 			if (!$perPage) $perPage = $options['perPage'];
 
 			$page = (int) $_GET['p'];
 			$offset = $page * $perPage;
 
+			$perRow = (int) $_GET['pr'];
+
+			//admin side
 			$ban = (int) $_GET['ban'];
 
+			//
+			$category = (int) $_GET['cat'];
+
+			//order
+			$order_by = sanitize_file_name($_GET['ob']);
+			if (!$order_by) $order_by = 'edate';
+
+			//options
+			$selectCategory = (int) $_GET['sc'];
+			$selectOrder = (int) $_GET['so'];
+			$selectPage = (int) $_GET['sp'];
+
+			//output clean
 			ob_clean();
 
+			//thumbs dir
 			$dir = $options['uploadsPath']. "/_thumbs";
 
-			global $wpdb;
-			$table_name3 = $wpdb->prefix . "vw_lsrooms";
+			$ajaxurl = admin_url() . 'admin-ajax.php?action=vwls_channels&pp=' . $perPage .  '&pr=' .$perRow. '&sc=' . $selectCategory . '&so=' . $selectOrder . '&sp=' . $selectPage .  '&id=' . $id;
+			if ($ban) $ajaxurl .= '&ban=' . $ban; //admin side
 
-			$items =  $wpdb->get_results("SELECT * FROM `$table_name3` WHERE status=1 ORDER BY edate DESC LIMIT $offset, ". $perPage);
-			if ($items) foreach ($items as $item)
+			if ($options['postChannels']) //channel posts enabled
 				{
-					$age = VWliveStreaming::format_age(time() -  $item->edate);
 
-					if ($ban) $banLink = '<a class = "button" href="admin.php?page=live-streaming-live&ban=' . urlencode( $item->name ) . '">Ban This Channel</a><br>';
+				//show header option controls
 
-					echo '<div class="videowhisperChannel">';
-					echo '<div class="videowhisperTitle">' . $item->name  . '</div>';
-					echo '<div class="videowhisperTime">' . $banLink . $age . '</div>';
+				$ajaxurlP = $ajaxurl . '&p='.$page;
+				$ajaxurlPC = $ajaxurl . '&cat=' . $category ;
+				$ajaxurlPO = $ajaxurl . '&ob='. $order_by;
+				$ajaxurlCO = $ajaxurl . '&cat=' . $category . '&ob='.$order_by ;
 
-					$thumbFilename = "$dir/" . $item->name . ".jpg";
-
-					$url = VWliveStreaming::roomURL($item->name);
-
-					$noCache = '';
-					if ($age=='LIVE') $noCache='?'.((time()/10)%100);
-
-					if (file_exists($thumbFilename)) echo '<a href="' . $url . '"><IMG src="' . VWliveStreaming::path2url($thumbFilename) . $noCache .'" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
-					else echo '<a href="' . $url . '"><IMG SRC="' . plugin_dir_url(__FILE__). 'screenshot-3.jpg" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
-					echo "</div>";
+				echo '<div class="videowhisperListOptions">';
+				if ($selectCategory)
+				{
+					echo '<div class="videowhisperDropdown">' . wp_dropdown_categories('echo=0&name=category' . $id . '&hide_empty=1&class=videowhisperSelect&show_option_all=' . __('All', 'videosharevod') . '&selected=' . $category).'</div>';
+					echo '<script>var category' . $id . ' = document.getElementById("category' . $id . '"); 			category' . $id . '.onchange = function(){aurl' . $id . '=\'' . $ajaxurlPO.'&cat=\'+ this.value; loadChannels' . $id . '(\'Loading category...\')}
+			</script>';
 				}
 
-			$ajaxurl = admin_url() . 'admin-ajax.php?action=vwls_channels&pp='.$perPage;
-			if ($ban) $ajaxurl .= '&ban=' . $ban;
+				if ($selectOrder)
+				{
+					echo '<div class="videowhisperDropdown"><select class="videowhisperSelect" id="order_by' . $id . '" name="order_by' . $id . '" onchange="aurl' . $id . '=\'' . $ajaxurlPC.'&ob=\'+ this.value; loadChannels' . $id . '(\'Ordering channels...\')">';
+					echo '<option value="">' . __('Order By', 'videosharevod') . ':</option>';
 
-			echo "<BR>";
-			if ($page>0) echo ' <a class="videowhisperButton g-btn type_secondary" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page-1). '\'; loadChannels();">Previous</a> ';
+					echo '<option value="post_date"' . ($order_by == 'post_date'?' selected':'') . '>' . __('Creation Date', 'videosharevod') . '</option>';
 
-			if (count($items) == $perPage) echo ' <a class="videowhisperButton g-btn type_secondary" href="JavaScript: void()" onclick="aurl=\'' . $ajaxurl.'&p='.($page+1). '\'; loadChannels();">Next</a> ';
+					echo '<option value="edate"' . ($order_by == 'edate'?' selected':'') . '>' . __('Broadcast Recently', 'videosharevod') . '</option>';
+
+					echo '<option value="viewers"' . ($order_by == 'viewers'?' selected':'') . '>' . __('Current Viewers', 'videosharevod') . '</option>';
+
+					echo '<option value="maxViewers"' . ($order_by == 'maxViewers'?' selected':'') . '>' . __('Maximum Viewers', 'videosharevod') . '</option>';
+
+					echo '</select></div>';
+
+				}
+				echo '</div>';
+
+
+				//query args
+				$args=array(
+					'post_type' => 'channel',
+					'post_status' => 'publish',
+					'posts_per_page' => $perPage,
+					'offset'           => $offset,
+					'order'            => 'DESC',
+					'meta_query' => array(
+						array( 'key' => 'hasSnapshot', 'value' => '1'),
+					)
+				);
+
+				if ($order_by != 'post_date')
+				{
+					$args['orderby'] = 'meta_value_num';
+					$args['meta_key'] = $order_by;
+				}
+				else
+				{
+					$args['orderby'] = 'post_date';
+				}
+
+				if ($category)  $args['category'] = $category;
+
+				$postslist = get_posts( $args );
+
+				//list channels
+				if (count($postslist)>0)
+				{
+					$k = 0;
+					foreach ( $postslist as $item )
+					{
+						if ($perRow) if ($k) if ($k % $perRow == 0) echo '<br>';
+
+						$edate =  get_post_meta($item->ID, 'edate', true);
+						$age = VWliveStreaming::format_age(time() -  $edate);
+						$name = sanitize_file_name($item->post_title);
+
+						if ($ban) $banLink = '<a class = "button" href="admin.php?page=live-streaming-live&ban=' . urlencode( $name ) . '">Ban This Channel</a><br>';
+
+						echo '<div class="videowhisperChannel">';
+						echo '<div class="videowhisperTitle">' . $name  . '</div>';
+						echo '<div class="videowhisperTime">' . $banLink . $age . '</div>';
+
+						$thumbFilename = "$dir/" . $name . ".jpg";
+						$url = VWliveStreaming::roomURL($name);
+
+						$noCache = '';
+						if ($age=='LIVE') $noCache='?'.((time()/10)%100);
+
+						if (file_exists($thumbFilename)) echo '<a href="' . $url . '"><IMG src="' . VWliveStreaming::path2url($thumbFilename) . $noCache .'" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
+						else echo '<a href="' . $url . '"><IMG SRC="' . plugin_dir_url(__FILE__). 'screenshot-3.jpg" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
+						echo "</div>";
+
+					}
+				}
+				else echo "No channels match current selection.";
+
+				//pagination
+				if ($selectPage)
+				{
+					echo "<BR>";
+					if ($page>0) echo ' <a class="videowhisperButton g-btn type_secondary" href="JavaScript: void()" onclick="aurl' . $id . '=\'' . $ajaxurlCO.'&p='.($page-1). '\'; loadChannels' . $id . '(\'Loading previous page...\');">Previous</a> ';
+
+					if (count($postslist) == $perPage) echo ' <a class="videowhisperButton g-btn type_secondary" href="JavaScript: void()" onclick="aurl' . $id . '=\'' . $ajaxurlCO.'&p='.($page+1). '\'; loadChannels' . $id . '(\'Loading next page...\');">Next</a> ';
+				}
+
+			}
+			else // channel post disabled - check db
+				{
+				global $wpdb;
+				$table_name3 = $wpdb->prefix . "vw_lsrooms";
+
+				$items =  $wpdb->get_results("SELECT * FROM `$table_name3` WHERE status=1 ORDER BY edate DESC LIMIT $offset, ". $perPage);
+				if ($items) foreach ($items as $item)
+					{
+						$age = VWliveStreaming::format_age(time() -  $item->edate);
+
+						if ($ban) $banLink = '<a class = "button" href="admin.php?page=live-streaming-live&ban=' . urlencode( $item->name ) . '">Ban This Channel</a><br>';
+
+						echo '<div class="videowhisperChannel">';
+						echo '<div class="videowhisperTitle">' . $item->name  . '</div>';
+						echo '<div class="videowhisperTime">' . $banLink . $age . '</div>';
+
+						$thumbFilename = "$dir/" . $item->name . ".jpg";
+
+						$url = VWliveStreaming::roomURL($item->name);
+
+						$noCache = '';
+						if ($age=='LIVE') $noCache='?'.((time()/10)%100);
+
+						if (file_exists($thumbFilename)) echo '<a href="' . $url . '"><IMG src="' . VWliveStreaming::path2url($thumbFilename) . $noCache .'" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
+						else echo '<a href="' . $url . '"><IMG SRC="' . plugin_dir_url(__FILE__). 'screenshot-3.jpg" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
+						echo "</div>";
+					}
+
+				//pagination
+				if ($selectPage)
+				{
+					echo "<BR>";
+					if ($page>0) echo ' <a class="videowhisperButton g-btn type_secondary" href="JavaScript: void()" onclick="aurl' . $id . '=\'' . $ajaxurlCO.'&p='.($page-1). '\'; loadChannels' . $id . '(\'Loading previous page...\');">Previous</a> ';
+
+					if (count($items) == $perPage) echo ' <a class="videowhisperButton g-btn type_secondary" href="JavaScript: void()" onclick="aurl' . $id . '=\'' . $ajaxurlCO.'&p='.($page+1). '\'; loadChannels' . $id . '(\'Loading next page...\');">Next</a> ';
+				}
+			}
+
+
 
 
 			die;
@@ -2045,6 +2212,29 @@ table, .videowhisperTable {
     border-collapse: separate;
 }
 
+.videowhisperDropdown {
+    display:inline-block;
+    border: 1px solid #111;
+    overflow: hidden;
+    border-radius:3px;
+    color: #eee;
+    background: #556570;
+    width: 240px;
+}
+
+.videowhisperSelect {
+    width: 100%;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    background-image: none;
+    -webkit-appearance: none;
+}
+
+.videowhisperSelect:focus {
+    outline: none;
+}
+
 </style>
 
 HTMLCODE
@@ -2365,10 +2555,9 @@ align="absmiddle" border="0">Start Broadcasting</a>
     Shows settings for broadcasting with external applications. Channel name is detected depending on settings, post type, user. Only owner can access for channel posts.
    </li>
      <li>
-	     <h4>[videowhisper_channels perPage="4"]</h4>
+	     <h4>[videowhisper_channels perPage="4" perrow="" order_by="edate" category_id="" select_category="1" select_order="1" select_page="1" include_css="1" ban="0" id=""]</h4>
 	     Lists channels with snapshots, ordered by most recent online and with pagination.
      </li>
-
      <li>
 	     <h4>[videowhisper_livesnapshots]</h4>
 	     Displays full size snapshots of online channels. No pagination.
@@ -4063,7 +4252,7 @@ lt=last session time received from this script in (milliseconds)
 									$viewers =  $wpdb->get_results("SELECT count(id) as no FROM `$table_name2` where status='1' and type='1' and room='" . $r . "'");
 
 									update_post_meta($postID, 'viewers', $viewers);
-									$maxViewers = get_post_meta($postID, 'maxViewers');
+									$maxViewers = get_post_meta($postID, 'maxViewers', true);
 									if ($viewers >= $maxViewers)
 									{
 										update_post_meta($postID, 'maxViewers', $viewers);
@@ -4428,7 +4617,7 @@ cam, mic = 0 none, 1 disabled, 2 enabled
 							$viewers =  $wpdb->get_results("SELECT count(id) as no FROM `$table_name2` where status='1' and type='1' and room='" . $r . "'");
 
 							update_post_meta($postID, 'viewers', $viewers);
-							$maxViewers = get_post_meta($postID, 'maxViewers');
+							$maxViewers = get_post_meta($postID, 'maxViewers', true);
 							if ($viewers >= $maxViewers)
 							{
 								update_post_meta($postID, 'maxViewers', $viewers);
