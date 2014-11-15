@@ -95,6 +95,9 @@ More information, the latest updates, other plugins and non-WordPress editions c
 == Changelog ==
 
 = 4.32.7 =
+* Navigation menus (setup in backend) for Channel Categories
+
+= 4.32.7 =
 * Improved channel AJAX listings: list by category in custom order
 
 = 4.32.6 =

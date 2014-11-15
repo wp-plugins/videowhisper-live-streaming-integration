@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.7
+Version: 4.32.8
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -678,6 +678,236 @@ HTMLCODE;
 
 		}
 
+		function admin_init()
+		{
+			add_meta_box(
+				'vwls-nav-menus',
+				'Channel Categories',
+				array('VWliveStreaming', 'nav_menus'),
+				'nav-menus',
+				'side',
+				'default');
+		}
+
+		function nav_menus()
+		{
+
+			//$object, $taxonomy
+
+			global $nav_menu_selected_id;
+			$taxonomy_name = 'category';
+
+			// Paginate browsing for large numbers of objects.
+			$per_page = 50;
+			$pagenum = isset( $_REQUEST[$taxonomy_name . '-tab'] ) && isset( $_REQUEST['paged'] ) ? absint( $_REQUEST['paged'] ) : 1;
+			$offset = 0 < $pagenum ? $per_page * ( $pagenum - 1 ) : 0;
+
+			$args = array(
+				'child_of' => 0,
+				'exclude' => '',
+				'hide_empty' => false,
+				'hierarchical' => 1,
+				'include' => '',
+				'number' => $per_page,
+				'offset' => $offset,
+				'order' => 'ASC',
+				'orderby' => 'name',
+				'pad_counts' => false,
+			);
+
+			$terms = get_terms( $taxonomy_name, $args );
+
+			if ( ! $terms || is_wp_error($terms) ) {
+				echo '<p>' . __( 'No items.' ) . '</p>';
+				return;
+			}
+
+			$num_pages = ceil( wp_count_terms( $taxonomy_name , array_merge( $args, array('number' => '', 'offset' => '') ) ) / $per_page );
+
+			$page_links = paginate_links( array(
+					'base' => add_query_arg(
+						array(
+							$taxonomy_name . '-tab' => 'all',
+							'paged' => '%#%',
+							'item-type' => 'taxonomy',
+							'item-object' => $taxonomy_name,
+						)
+					),
+					'format' => '',
+					'prev_text' => __('&laquo;'),
+					'next_text' => __('&raquo;'),
+					'total' => $num_pages,
+					'current' => $pagenum
+				));
+
+			$db_fields = false;
+			if ( is_taxonomy_hierarchical( $taxonomy_name ) ) {
+				$db_fields = array( 'parent' => 'parent', 'id' => 'term_id' );
+			}
+
+			$walker = new Walker_Nav_Menu_Checklist( $db_fields );
+
+			$current_tab = 'most-used';
+			if ( isset( $_REQUEST[$taxonomy_name . '-tab'] ) && in_array( $_REQUEST[$taxonomy_name . '-tab'], array('all', 'most-used', 'search') ) ) {
+				$current_tab = $_REQUEST[$taxonomy_name . '-tab'];
+			}
+
+			if ( ! empty( $_REQUEST['quick-search-taxonomy-' . $taxonomy_name] ) ) {
+				$current_tab = 'search';
+			}
+
+			$removed_args = array(
+				'action',
+				'customlink-tab',
+				'edit-menu-item',
+				'menu-item',
+				'page-tab',
+				'_wpnonce',
+			);
+
+?>
+	<div id="taxonomy-<?php echo $taxonomy_name; ?>" class="taxonomydiv">
+		<ul id="taxonomy-<?php echo $taxonomy_name; ?>-tabs" class="taxonomy-tabs add-menu-item-tabs">
+			<li <?php echo ( 'most-used' == $current_tab ? ' class="tabs"' : '' ); ?>>
+				<a class="nav-tab-link" data-type="tabs-panel-<?php echo esc_attr( $taxonomy_name ); ?>-pop" href="<?php if ( $nav_menu_selected_id ) echo esc_url(add_query_arg($taxonomy_name . '-tab', 'most-used', remove_query_arg($removed_args))); ?>#tabs-panel-<?php echo $taxonomy_name; ?>-pop">
+					<?php _e( 'Most Used' ); ?>
+				</a>
+			</li>
+			<li <?php echo ( 'all' == $current_tab ? ' class="tabs"' : '' ); ?>>
+				<a class="nav-tab-link" data-type="tabs-panel-<?php echo esc_attr( $taxonomy_name ); ?>-all" href="<?php if ( $nav_menu_selected_id ) echo esc_url(add_query_arg($taxonomy_name . '-tab', 'all', remove_query_arg($removed_args))); ?>#tabs-panel-<?php echo $taxonomy_name; ?>-all">
+					<?php _e( 'View All' ); ?>
+				</a>
+			</li>
+			<li <?php echo ( 'search' == $current_tab ? ' class="tabs"' : '' ); ?>>
+				<a class="nav-tab-link" data-type="tabs-panel-search-taxonomy-<?php echo esc_attr( $taxonomy_name ); ?>" href="<?php if ( $nav_menu_selected_id ) echo esc_url(add_query_arg($taxonomy_name . '-tab', 'search', remove_query_arg($removed_args))); ?>#tabs-panel-search-taxonomy-<?php echo $taxonomy_name; ?>">
+					<?php _e( 'Search' ); ?>
+				</a>
+			</li>
+		</ul><!-- .taxonomy-tabs -->
+
+		<div id="tabs-panel-<?php echo $taxonomy_name; ?>-pop" class="tabs-panel <?php
+			echo ( 'most-used' == $current_tab ? 'tabs-panel-active' : 'tabs-panel-inactive' );
+			?>">
+			<ul id="<?php echo $taxonomy_name; ?>checklist-pop" class="categorychecklist form-no-clear" >
+				<?php
+			$popular_terms = get_terms( $taxonomy_name, array( 'orderby' => 'count', 'order' => 'DESC', 'number' => 10, 'hierarchical' => false ) );
+			$args['walker'] = $walker;
+			echo walk_nav_menu_tree( array_map(array('VWliveStreaming', 'nav_menu_item'), $popular_terms), 0, (object) $args );
+?>
+			</ul>
+		</div><!-- /.tabs-panel -->
+
+		<div id="tabs-panel-<?php echo $taxonomy_name; ?>-all" class="tabs-panel tabs-panel-view-all <?php
+			echo ( 'all' == $current_tab ? 'tabs-panel-active' : 'tabs-panel-inactive' );
+			?>">
+			<?php if ( ! empty( $page_links ) ) : ?>
+				<div class="add-menu-item-pagelinks">
+					<?php echo $page_links; ?>
+				</div>
+			<?php endif; ?>
+			<ul id="<?php echo $taxonomy_name; ?>checklist" data-wp-lists="list:<?php echo $taxonomy_name?>" class="categorychecklist form-no-clear">
+				<?php
+			$args['walker'] = $walker;
+			echo walk_nav_menu_tree( array_map(array('VWliveStreaming', 'nav_menu_item'), $terms), 0, (object) $args );
+?>
+			</ul>
+			<?php if ( ! empty( $page_links ) ) : ?>
+				<div class="add-menu-item-pagelinks">
+					<?php echo $page_links; ?>
+				</div>
+			<?php endif; ?>
+		</div><!-- /.tabs-panel -->
+
+		<div class="tabs-panel <?php
+			echo ( 'search' == $current_tab ? 'tabs-panel-active' : 'tabs-panel-inactive' );
+			?>" id="tabs-panel-search-taxonomy-<?php echo $taxonomy_name; ?>">
+			<?php
+			if ( isset( $_REQUEST['quick-search-taxonomy-' . $taxonomy_name] ) ) {
+				$searched = esc_attr( $_REQUEST['quick-search-taxonomy-' . $taxonomy_name] );
+				$search_results = get_terms( $taxonomy_name, array( 'name__like' => $searched, 'fields' => 'all', 'orderby' => 'count', 'order' => 'DESC', 'hierarchical' => false ) );
+			} else {
+				$searched = '';
+				$search_results = array();
+			}
+?>
+			<p class="quick-search-wrap">
+				<input type="search" class="quick-search input-with-default-title" title="<?php esc_attr_e('Search'); ?>" value="<?php echo $searched; ?>" name="quick-search-taxonomy-<?php echo $taxonomy_name; ?>" />
+				<span class="spinner"></span>
+				<?php submit_button( __( 'Search' ), 'button-small quick-search-submit button-secondary hide-if-js', 'submit', false, array( 'id' => 'submit-quick-search-taxonomy-' . $taxonomy_name ) ); ?>
+			</p>
+
+			<ul id="<?php echo $taxonomy_name; ?>-search-checklist" data-wp-lists="list:<?php echo $taxonomy_name?>" class="categorychecklist form-no-clear">
+			<?php if ( ! empty( $search_results ) && ! is_wp_error( $search_results ) ) : ?>
+				<?php
+				$args['walker'] = $walker;
+			echo walk_nav_menu_tree( array_map(array('VWliveStreaming', 'nav_menu_item'), $search_results), 0, (object) $args );
+?>
+			<?php elseif ( is_wp_error( $search_results ) ) : ?>
+				<li><?php echo $search_results->get_error_message(); ?></li>
+			<?php elseif ( ! empty( $searched ) ) : ?>
+				<li><?php _e('No results found.'); ?></li>
+			<?php endif; ?>
+			</ul>
+		</div><!-- /.tabs-panel -->
+
+		<p class="button-controls">
+			<span class="list-controls">
+				<a href="<?php
+			echo esc_url(add_query_arg(
+					array(
+						$taxonomy_name . '-tab' => 'all',
+						'selectall' => 1,
+					),
+					remove_query_arg($removed_args)
+				));
+			?>#taxonomy-<?php echo $taxonomy_name; ?>" class="select-all"><?php _e('Select All'); ?></a>
+			</span>
+
+			<span class="add-to-menu">
+				<input type="submit"<?php wp_nav_menu_disabled_check( $nav_menu_selected_id ); ?> class="button-secondary submit-add-to-menu right" value="<?php esc_attr_e( 'Add to Menu' ); ?>" name="add-taxonomy-menu-item" id="<?php echo esc_attr( 'submit-taxonomy-' . $taxonomy_name ); ?>" />
+				<span class="spinner"></span>
+			</span>
+		</p>
+
+	</div><!-- /.taxonomydiv -->
+	        <?php
+		}
+
+		function nav_menu_item( $menu_item )
+		{
+
+			$menu_item->ID = $menu_item->term_id;
+			$menu_item->db_id = 0;
+			$menu_item->menu_item_parent = 0;
+			$menu_item->object_id = (int) $menu_item->term_id;
+			$menu_item->post_parent = (int) $menu_item->parent;
+			$menu_item->type = 'custom';
+
+			$object = get_taxonomy( $menu_item->taxonomy );
+			$menu_item->object = $object->name;
+			$menu_item->type_label = $object->labels->singular_name;
+
+			$menu_item->title = $menu_item->name;
+
+			$options = get_option('VWliveStreamingOptions');
+			if ($options['disablePageC']=='0')
+			{
+				$page_id = get_option("vwls_page_channels");
+				$permalink = get_permalink( $page_id);
+				$menu_item->url = add_query_arg(array('cid' => $menu_item->object_id, 'category' => $menu_item->name), $permalink);
+			} else $menu_item->url = get_term_link( $menu_item, $menu_item->taxonomy ) . '?channels=1' ;
+
+			$menu_item->target = '';
+			$menu_item->attr_title = '';
+			$menu_item->description = get_term_field( 'description', $menu_item->term_id, $menu_item->taxonomy );
+			$menu_item->classes = array();
+			$menu_item->xfn = '';
+
+			/**
+			 * @param object $menu_item The menu item object.
+			 */
+			return $menu_item;
+		}
 
 		function shortcode_channels($atts)
 		{
@@ -693,12 +923,23 @@ HTMLCODE;
 					'select_order' => '1',
 					'select_page' => '1',
 					'include_css' => '1',
+					'url_vars' => '1',
+					'url_vars_fixed' => '1',
 					'id' => ''
-
 				), $atts, 'videowhisper_channels');
 
 			$id = $atts['id'];
 			if (!$id) $id = uniqid();
+
+			if ($atts['url_vars'])
+			{
+			  $cid = (int) $_GET['cid'];
+			  if ($cid)
+			  {
+				  $atts['category_id'] = $cid;
+				  if ($atts['url_vars_fixed']) $atts['select_category'] = '0';
+			  }
+			}
 
 			$ajaxurl = admin_url() . 'admin-ajax.php?action=vwls_channels&pp=' . $atts['perPage']. '&pr=' . $atts['perrow'] . '&ob=' . $atts['order_by'] . '&cat=' . $atts['category_id'] . '&sc=' . $atts['select_category'] . '&so=' . $atts['select_order'] . '&sp=' . $atts['select_page']. '&id=' .$id;
 
@@ -1303,11 +1544,12 @@ HTMLCODE;
 			}
 
 			$maxViewers =  get_post_meta($postID, 'maxViewers', true);
-			if (!is_array($maxViewers))
-			{
-				$maxDate = get_post_meta($postID, 'maxDate', true);
-				$addCode .= __('Maximum viewers','videosharevod') . ': ' . $maxViewers . date("(F j, Y, g:i a)", $maxDate);
-			}
+			if (!is_array($maxViewers)) if ($maxViewers>0)
+				{
+					$maxDate = (int) get_post_meta($postID, 'maxDate', true);
+					$addCode .= __('Maximum viewers','videosharevod') . ': ' . $maxViewers;
+					if ($maxDate) $addCode .= ' on ' . date("F j, Y, g:i a", $maxDate);
+				}
 
 			return $addCode . $content;
 		}
@@ -1582,8 +1824,8 @@ HTMLCODE;
 					{
 						if ($perRow) if ($k) if ($k % $perRow == 0) echo '<br>';
 
-						$edate =  get_post_meta($item->ID, 'edate', true);
-						$age = VWliveStreaming::format_age(time() -  $edate);
+								$edate =  get_post_meta($item->ID, 'edate', true);
+							$age = VWliveStreaming::format_age(time() -  $edate);
 						$name = sanitize_file_name($item->post_title);
 
 						if ($ban) $banLink = '<a class = "button" href="admin.php?page=live-streaming-live&ban=' . urlencode( $name ) . '">Ban This Channel</a><br>';
@@ -3156,7 +3398,7 @@ Settings for video subscribers that watch the live channels using watch or plain
 
 			global $wpdb;
 			if ($broadcaster) $table_name = $wpdb->prefix . "vw_sessions";
-			else $table_name = $wpdb->prefix . "vwlw_sessions";
+			else $table_name = $wpdb->prefix . "vw_lwsessions";
 
 			$cnd = '';
 			if ($strict) $cnd = " AND `type`='$type'";
@@ -3191,7 +3433,7 @@ Settings for video subscribers that watch the live channels using watch or plain
 			global $wpdb;
 
 			if ($broadcaster) $table_name = $wpdb->prefix . "vw_sessions";
-			else $table_name = $wpdb->prefix . "vwlw_sessions";
+			else $table_name = $wpdb->prefix . "vw_lwsessions";
 
 			//do not clean more often than 25s (mysql table invalidate)
 			$lastClean = 0; $cleanNow = false;
@@ -4702,6 +4944,8 @@ if (isset($liveStreaming)) {
 
 	add_action("plugins_loaded", array(&$liveStreaming, 'init'));
 	add_action('admin_menu', array(&$liveStreaming, 'adminMenu'));
+	add_action( 'admin_init', array(&$liveStreaming, 'admin_init'));
+
 
 	/* Only load code that needs BuddyPress to run once BP is loaded and initialized. */
 	function liveStreamingBP_init()
