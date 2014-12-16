@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.8
+Version: 4.32.9
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -909,6 +909,7 @@ HTMLCODE;
 			return $menu_item;
 		}
 
+
 		function shortcode_channels($atts)
 		{
 			$options = get_option('VWliveStreamingOptions');
@@ -933,12 +934,12 @@ HTMLCODE;
 
 			if ($atts['url_vars'])
 			{
-			  $cid = (int) $_GET['cid'];
-			  if ($cid)
-			  {
-				  $atts['category_id'] = $cid;
-				  if ($atts['url_vars_fixed']) $atts['select_category'] = '0';
-			  }
+				$cid = (int) $_GET['cid'];
+				if ($cid)
+				{
+					$atts['category_id'] = $cid;
+					if ($atts['url_vars_fixed']) $atts['select_category'] = '0';
+				}
 			}
 
 			$ajaxurl = admin_url() . 'admin-ajax.php?action=vwls_channels&pp=' . $atts['perPage']. '&pr=' . $atts['perrow'] . '&ob=' . $atts['order_by'] . '&cat=' . $atts['category_id'] . '&sc=' . $atts['select_category'] . '&so=' . $atts['select_order'] . '&sp=' . $atts['select_page']. '&id=' .$id;
@@ -2011,8 +2012,9 @@ BODY
 
 					echo "Starting transcoder for '$stream' ($postID)... <BR>";
 					$log_file =  $upath . "videowhisper_transcode.log";
-					$cmd = $options['ffmpegPath'] . " -s 480x360 -r 15 -vb 512k -vcodec libx264 -coder 0 -bf 0 -analyzeduration 0 -level 3.1 -g 30 -maxrate 768k -acodec libfaac -ac 2 -ar 22050 -ab 96k -x264opts vbv-maxrate=364:qpmin=4:ref=4 -threads 4 -rtmp_pageurl \"http://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'] . "\" -rtmp_swfurl \"http://".$_SERVER['HTTP_HOST']."\" -f flv \"" .
-						$rtmpAddress . "/i_". $stream . "\" -i \"" . $rtmpAddressView ."/". $stream . "\" >&$log_file & ";
+					//-vcodec copy
+					$cmd = $options['ffmpegPath'] .' ' .  $options['ffmpegTranscode'] . " -threads 1 -rtmp_pageurl \"http://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'] . "\" -rtmp_swfurl \"http://".$_SERVER['HTTP_HOST']."\" -f flv \"" .
+					$rtmpAddress . "/i_". $stream . "\" -i \"" . $rtmpAddressView ."/". $stream . "\" >&$log_file & ";
 
 					//echo $cmd;
 					exec($cmd, $output, $returnvalue);
@@ -2237,6 +2239,7 @@ Software</a>.</p></div>';
 				'rtmp_amf' => 'AMF3',
 				'httpstreamer' => 'http://localhost:1935/videowhisper-x/',
 				'ffmpegPath' => '/usr/local/bin/ffmpeg',
+				'ffmpegTranscode' => '-vcodec copy -acodec libfaac -ac 2 -ar 22050 -ab 96k',
 
 				'canBroadcast' => 'members',
 				'broadcastList' => 'Super Admin, Administrator, Editor, Author',
@@ -2814,6 +2817,28 @@ align="absmiddle" border="0">Start Broadcasting</a>
   <?php
 		}
 
+		function channelFeatures()
+		{
+			return array(
+				'privateList' => array(
+					'name'=>'Private Channels',
+					'description' =>'Hide channels from public listings. Can be accessed by channel links.',
+					'active' => 0),
+				'privateChat' => array(
+					'name'=>'Private Chat',
+					'description' =>'Disable chat from site watch interface.',
+					'active' => 0),
+				'privateVideos' => array(
+					'name'=>'Private Videos',
+					'description' =>'Channel videos do not show in public listings. Only show on channel page.',
+					'active' => 0),
+				'hiddenVideos' => array(
+					'name'=>'Hidden Videos',
+					'description' =>'Channel videos do not show in public or channel listings. Only owner can browse.',
+					'active' => 0),
+			);
+		}
+
 		function options()
 		{
 			$options = VWliveStreaming::setupOptions();
@@ -3020,6 +3045,12 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 							if ($det) echo "detected ($outd)"; else echo "missing: please configure and install ffmpeg with $cod";
 						}
 ?>
+
+<h4>FFMPEG Transcoding Parameters</h4>
+<input name="ffmpegTranscode" type="text" id="ffmpegTranscode" size="100" maxlength="256" value="<?php echo $options['ffmpegTranscode']?>"/>
+
+<BR>Ex.(transcode audio for iOS): -vcodec copy -acodec libfaac -ac 2 -ar 22050 -ab 96k
+<BR>Ex.(transcode video+audio): -vcodec libx264 -s 480x360 -r 15 -vb 512k -x264opts vbv-maxrate=364:qpmin=4:ref=4 -coder 0 -bf 0 -analyzeduration 0 -level 3.1 -g 30 -maxrate 768k -acodec libfaac -ac 2 -ar 22050 -ab 96k
 
 <h4>Disable Bandwidth Detection</h4>
 <p>Required on some rtmp servers that don't support bandwidth detection and return a Connection.Call.Fail error.</p>
