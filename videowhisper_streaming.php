@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.9
+Version: 4.32.11
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -2275,7 +2275,7 @@ Software</a>.</p></div>';
 				'transcoding' => '1',
 
 				'videoCodec'=>'H264',
-				'codecProfile' => 'main',
+				'codecProfile' => 'baseline',
 				'codecLevel' => '3.1',
 
 				'soundCodec'=> 'Speex',
@@ -3048,7 +3048,7 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 
 <h4>FFMPEG Transcoding Parameters</h4>
 <input name="ffmpegTranscode" type="text" id="ffmpegTranscode" size="100" maxlength="256" value="<?php echo $options['ffmpegTranscode']?>"/>
-
+<BR>For lower server load and higher performance, web clients should be configured to broadcast video already suitable for target device (H.264 Baseline 3.1 for most iOS devices) so only audio needs to be encoded.
 <BR>Ex.(transcode audio for iOS): -vcodec copy -acodec libfaac -ac 2 -ar 22050 -ab 96k
 <BR>Ex.(transcode video+audio): -vcodec libx264 -s 480x360 -r 15 -vb 512k -x264opts vbv-maxrate=364:qpmin=4:ref=4 -coder 0 -bf 0 -analyzeduration 0 -level 3.1 -g 30 -maxrate 768k -acodec libfaac -ac 2 -ar 22050 -ab 96k
 
@@ -3206,12 +3206,16 @@ Settings for web based broadcasting interface. Do not apply for external apps.
   <option value="H264" <?php echo $options['videoCodec']=='H264'?"selected":""?>>H264</option>
   <option value="H263" <?php echo $options['videoCodec']=='H263'?"selected":""?>>H263</option>
 </select>
+<BR>H264 provides better quality at same bandwidth but may not be supported by older RTMP server versions (ex. Red5).
+<BR>When publishing to iOS with HLS, for lower server load and higher performance, web clients should be configured to broadcast video suitable for target device (H.264 Baseline 3.1) so only audio needs to be encoded.
+
 
 <h4>H264 Video Codec Profile</h4>
 <select name="codecProfile" id="codecProfile">
   <option value="main" <?php echo $options['codecProfile']=='main'?"selected":""?>>main</option>
   <option value="baseline" <?php echo $options['codecProfile']=='baseline'?"selected":""?>>baseline</option>
 </select>
+<br>Recommended: Baseline
 
 <h4>H264 Video Codec Level</h4>
 <select name="codecLevel" id="codecLevel">
@@ -3224,12 +3228,14 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 				}
 ?>
  </select>
+<br>Recommended: 3.1
 
 <h4>Sound Codec</h4>
 <select name="soundCodec" id="soundCodec">
   <option value="Speex" <?php echo $options['soundCodec']=='Speex'?"selected":""?>>Speex</option>
   <option value="Nellymoser" <?php echo $options['soundCodec']=='Nellymoser'?"selected":""?>>Nellymoser</option>
 </select>
+<BR>Current web codecs used by Flash plugin are not currently supported by iOS. For delivery to iOS, audio should be transcoded to AAC (HE-AAC or AAC-LC up to 48 kHz, stereo audio).
 
 <h4>Speex Sound Quality</h4>
 <select name="soundQuality" id="soundQuality">
