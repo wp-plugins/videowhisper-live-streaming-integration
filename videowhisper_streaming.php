@@ -3281,6 +3281,7 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 <p>How long to consider broadcaster online if no web status update occurs.</p>
 <input name="onlineExpiration1" type="text" id="onlineExpiration1" size="5" maxlength="6" value="<?php echo $options['onlineExpiration1']?>"/>s
 <br>Should be 10s higher than maximum statusInterval (ms) configured in parameters. A higher statusInterval decreases web server load caused by status updates.
+<br>If lower than statusInterval that can cause web server online session sync errors and online users showing offline.
 
 <?php
 				break;
