@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.14
+Version: 4.32.15
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -4433,10 +4433,10 @@ lt=last session time received from this script in (milliseconds)
 
 
 					//update time
-					$expTime = $options['onlineExpiration0']+30;
+					$expTime = $options['onlineExpiration0']+60;
 					$dS = floor(($currentTime-$lastTime)/1000);
 
-					if ($dS> $expTime || $dS<0) $disconnect = urlencode("Web server out of sync compared to online expiration setting!"); //Updates should be faster; fraud attempt?
+					if ($dS > $expTime || $dS<0) $disconnect = urlencode("Web server out of sync compared to online expiration setting: $dS/$expTime"); //Updates should be faster; fraud attempt?
 					else
 					{
 						$channel->wtime += $dS;
