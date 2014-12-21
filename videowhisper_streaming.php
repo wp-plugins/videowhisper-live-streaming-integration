@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.12
+Version: 4.32.14
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -1092,10 +1092,28 @@ HTMLCODE;
 			if ($strict) $cnd = " AND `type`='$type'";
 
 
-			//transcoder active for this channel?
+			//transcoder active for this channel - only when rtmp status works
+			/*
 			$sqlS = "SELECT * FROM $table_name where session='ffmpeg_$username' and status='1' LIMIT 0,1";
 			$session = $wpdb->get_row($sqlS);
 			if ($session) $streamName = "i_$stream";
+			else $streamName = $stream;
+			*/
+
+			//detect transcoding process
+			$cmd = "ps aux | grep '/i_$stream -i rtmp'";
+			exec($cmd, $output, $returnvalue);
+			//var_dump($output);
+
+			$transcoding = 0;
+
+			foreach ($output as $line) if (strstr($line, "ffmpeg"))
+					{
+						$transcoding = 1;
+						break;
+					}
+
+			if ($transcoding) $streamName = "i_$stream";
 			else $streamName = $stream;
 
 			$streamURL = "${options['httpstreamer']}$streamName/playlist.m3u8";
@@ -1113,9 +1131,9 @@ HTMLCODE;
  <source src="$streamURL" type='video/mp4'>
     <div class="fallback">
 	    <p>You must have an HTML5 capable browser with HLS support (Ex. Safari) to open this live stream: $streamURL</p>
+	    <p>Transcoding detected: $transcoding</p>
 	</div>
 </video>
-
 HTMLCODE;
 			return $htmlCode;
 		}
@@ -2239,7 +2257,7 @@ Software</a>.</p></div>';
 				'rtmp_amf' => 'AMF3',
 				'httpstreamer' => 'http://localhost:1935/videowhisper-x/',
 				'ffmpegPath' => '/usr/local/bin/ffmpeg',
-				'ffmpegTranscode' => '-vcodec copy -acodec libfaac -ac 2 -ar 22050 -ab 96k',
+				'ffmpegTranscode' => '-analyzeduration 0 -vcodec copy -acodec libfaac -ac 2 -ar 22050 -ab 96k',
 
 				'canBroadcast' => 'members',
 				'broadcastList' => 'Super Admin, Administrator, Editor, Author',
