@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.11
+Version: 4.32.12
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -4412,9 +4412,12 @@ lt=last session time received from this script in (milliseconds)
 
 					$maximumSessionTime = $maximumWatchTime;
 
+
 					//update time
+					$expTime = $options['onlineExpiration0']+30;
 					$dS = floor(($currentTime-$lastTime)/1000);
-					if ($dS>180 || $dS<0) $disconnect = urlencode("Web server out of sync!"); //Updates should be faster than 3 minutes; fraud attempt?
+
+					if ($dS> $expTime || $dS<0) $disconnect = urlencode("Web server out of sync compared to online expiration setting!"); //Updates should be faster; fraud attempt?
 					else
 					{
 						$channel->wtime += $dS;
@@ -4511,8 +4514,9 @@ lt=last session time received from this script in (milliseconds)
 								$currentTime = $ztime * 1000;
 
 								//update time
+								$expTime = $options['onlineExpiration1']+30;
 								$dS = floor(($currentTime-$lastTime)/1000);
-								if ($dS>180 || $dS<0) $disconnect = "Web server out of sync!"; //Updates should be faster than 3 minutes; fraud attempt?
+								if ($dS > $expTime || $dS<0) $disconnect = "Web server out of sync!"; //Updates should be faster; fraud attempt?
 
 								$channel->btime += $dS;
 
@@ -4596,9 +4600,12 @@ lt=last session time received from this script in (milliseconds)
 								//calculate time in ms based on previous request
 								$lastTime =  $session->edate * 1000;
 								$currentTime = $ztime * 1000;
+
 								//update room time
+								$expTime = $options['onlineExpiration0']+30;
+
 								$dS = floor(($currentTime-$lastTime)/1000);
-								if ($dS>180 || $dS<0) $disconnect = "Web server out of sync!"; //Updates should be faster than 3 minutes; fraud attempt?
+								if ($dS > $expTime || $dS<0) $disconnect = "Web server out of sync!"; //Updates should be faster than 3 minutes; fraud attempt?
 
 								$channel->wtime += $dS;
 
@@ -4869,8 +4876,10 @@ cam, mic = 0 none, 1 disabled, 2 enabled
 					$maximumSessionTime = $maximumBroadcastTime; //broadcaster
 
 					//update time
+					$expTime = $options['onlineExpiration1']+30;
 					$dS = floor(($currentTime-$lastTime)/1000);
-					if ($dS>180 || $dS<0) $disconnect = urlencode("Web server out of sync!"); //Updates should be faster than 3 minutes; fraud attempt?
+
+					if ($dS>$expTime || $dS<0) $disconnect = urlencode("Web server out of sync!"); //Updates should be faster than 3 minutes; fraud attempt?
 					else
 					{
 						$channel->btime += $dS;
