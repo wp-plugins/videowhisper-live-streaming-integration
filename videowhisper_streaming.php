@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.15
+Version: 4.32.16
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -1406,9 +1406,9 @@ HTMLCODE;
 						$htmlCode .= <<<HTMLCODE
 <div id="vwinfo">
 iOS Transcoding (iPhone/iPad)<BR>
-<a href='#' class="button" id="transcoderon">ON</a>
-<a href='#' class="button" id="transcoderoff">OFF</a>
-<div id="result">A stream must be broadcast for transcoder to start.</div>
+<a href='#' class="button" id="transcoderon">ENABLE</a>
+<a href='#' class="button" id="transcoderoff">DISABLE</a>
+<div id="videowhisperTranscoder">A stream must be broadcast for transcoder to start. Activate to make stream available for iOS HLS.</div>
 <p align="right">(<a href="javascript:void(0)" onClick="vwinfo.style.display='none';">hide</a>)</p>
 </div>
 
@@ -1423,6 +1423,7 @@ iOS Transcoding (iPhone/iPad)<BR>
 	bottom: 10px;
 	right: 10px;
 	text-align:left;
+	font-size: 14px;
 	padding: 10px;
 	margin: 10px;
 	background-color: #666;
@@ -1476,19 +1477,21 @@ iOS Transcoding (iPhone/iPad)<BR>
 -->
 </style>
 
-<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
 <script type="text/javascript">
-	$.ajaxSetup ({
+	var \$j = jQuery.noConflict();
+	var vtCheck = false;
+
+	\$j.ajaxSetup ({
 		cache: false
 	});
 	var ajax_load = "Loading...";
 
-	$("#transcoderon").click(function(){
-		$("#result").html(ajax_load).load("$admin_ajax?action=vwls_trans&task=mp4&stream=$stream");
+	\$j("#transcoderon").click(function(){
+	\$j("#videowhisperTranscoder").html(ajax_load).load("$admin_ajax?action=vwls_trans&task=enable&stream=$stream");
 	});
 
-	$("#transcoderoff").click(function(){
-	$("#result").html(ajax_load).load("$admin_ajax?action=vwls_trans&task=close&stream=$stream");
+	\$j("#transcoderoff").click(function(){
+	\$j("#videowhisperTranscoder").html(ajax_load).load("$admin_ajax?action=vwls_trans&task=close&stream=$stream");
 	});
 </script>
 HTMLCODE;
@@ -1978,7 +1981,7 @@ BODY
 
 			switch ($_GET['task'])
 			{
-			case 'mp4':
+			case 'enable':
 
 				if ( !is_user_logged_in() )
 				{
@@ -1990,16 +1993,26 @@ BODY
 				exec($cmd, $output, $returnvalue);
 				//var_dump($output);
 
+				$admin_ajax = admin_url() . 'admin-ajax.php';
+
 				$transcoding = 0;
 
 				foreach ($output as $line) if (strstr($line, "ffmpeg"))
 					{
 						$columns = preg_split('/\s+/',$line);
-						echo "Transcoder Already Active (".$columns[1]." CPU: ".$columns[2]." Mem: ".$columns[3].")";
+						echo "Transcoder is currently Active (".$columns[1]." CPU: ".$columns[2]." Mem: ".$columns[3].")<BR> Will verify each 2 minutes.";
 						$transcoding = 1;
 					}
 
+				if ($transcoding)
+				{
+				echo '<script>
+				var $j = jQuery.noConflict();
 
+			setTimeout(\'$j("#videowhisperTranscoder").html(ajax_load).load("'.$admin_ajax.'?action=vwls_trans&task=enable&stream='.$stream.'");\', 120000 );
+
+				</script>';
+				}
 
 				if (!$transcoding)
 				{
@@ -2028,11 +2041,17 @@ BODY
 						$rtmpAddressView = $options['rtmp_server'];
 					}
 
-					echo "Starting transcoder for '$stream' ($postID)... <BR>";
+					echo "Transcoding process currently not active for '$stream'.<BR>";
 					$log_file =  $upath . "videowhisper_transcode.log";
+
+
+					exec("tail -n 1 $log_file", $output1, $returnvalue);
+					echo "Logs: ". substr($output1[0],0,100) . " ...<br>";
+
 					//-vcodec copy
 					$cmd = $options['ffmpegPath'] .' ' .  $options['ffmpegTranscode'] . " -threads 1 -rtmp_pageurl \"http://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'] . "\" -rtmp_swfurl \"http://".$_SERVER['HTTP_HOST']."\" -f flv \"" .
 					$rtmpAddress . "/i_". $stream . "\" -i \"" . $rtmpAddressView ."/". $stream . "\" >&$log_file & ";
+
 
 					//echo $cmd;
 					exec($cmd, $output, $returnvalue);
@@ -2045,8 +2064,16 @@ BODY
 					foreach ($output as $line) if (strstr($line, "ffmpeg"))
 						{
 							$columns = preg_split('/\s+/',$line);
-							echo "Transcoder Started (".$columns[1].")<BR>";
+							echo "Launching transcoder process #".$columns[1]."<BR> Verifying in 5s if successful...";
 						}
+
+
+				echo '<script>
+				var $j = jQuery.noConflict();
+
+				setTimeout(\'$j("#videowhisperTranscoder").html(ajax_load).load("'.$admin_ajax.'?action=vwls_trans&task=enable&stream='.$stream.'");\', 5000 );
+
+				</script>';
 
 				}
 
@@ -2073,16 +2100,18 @@ BODY
 						$columns = preg_split('/\s+/',$line);
 						$cmd = "kill -9 " . $columns[1];
 						exec($cmd, $output, $returnvalue);
-						echo "<BR>Closing ".$columns[1]." CPU: ".$columns[2]." Mem: ".$columns[3];
+						echo "<BR>Closing #".$columns[1]." CPU: ".$columns[2]." Mem: ".$columns[3];
 						$transcoding = 1;
 					}
 
 				if (!$transcoding)
 				{
-					echo "Transcoder not found for '$stream'!";
+					echo "Transcoder not found for '$stream'! Nothing to close.";
 				}
 
 				break;
+
+
 			case "html5";
 ?>
 <p>iOS live stream link (open with Safari or test with VLC): <a href="<?php echo $options['httpstreamer']?>i_<?php echo $stream?>/playlist.m3u8"><br />
