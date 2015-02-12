@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.16
+Version: 4.32.17
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -1312,7 +1312,7 @@ HTMLCODE;
 		function shortcode_broadcast($atts)
 		{
 			$stream = '';
-			if (!is_user_logged_in()) return "<div class='error'>Broadcast: Only logged in users can broadcast!</div>";
+			if (!is_user_logged_in()) return "<div class='error'>' . __('Broadcasting not allowed: Only logged in users can broadcast!', 'livestreaming') . '</div>";
 
 			$options = get_option('VWliveStreamingOptions');
 
@@ -1569,7 +1569,7 @@ HTMLCODE;
 			if (!is_array($maxViewers)) if ($maxViewers>0)
 				{
 					$maxDate = (int) get_post_meta($postID, 'maxDate', true);
-					$addCode .= __('Maximum viewers','videosharevod') . ': ' . $maxViewers;
+					$addCode .= __('Maximum viewers','livestreaming') . ': ' . $maxViewers;
 					if ($maxDate) $addCode .= ' on ' . date("F j, Y, g:i a", $maxDate);
 				}
 
@@ -1788,7 +1788,7 @@ HTMLCODE;
 				echo '<div class="videowhisperListOptions">';
 				if ($selectCategory)
 				{
-					echo '<div class="videowhisperDropdown">' . wp_dropdown_categories('echo=0&name=category' . $id . '&hide_empty=1&class=videowhisperSelect&show_option_all=' . __('All', 'videosharevod') . '&selected=' . $category).'</div>';
+					echo '<div class="videowhisperDropdown">' . wp_dropdown_categories('echo=0&name=category' . $id . '&hide_empty=1&class=videowhisperSelect&show_option_all=' . __('All', 'livestreaming') . '&selected=' . $category).'</div>';
 					echo '<script>var category' . $id . ' = document.getElementById("category' . $id . '"); 			category' . $id . '.onchange = function(){aurl' . $id . '=\'' . $ajaxurlPO.'&cat=\'+ this.value; loadChannels' . $id . '(\'Loading category...\')}
 			</script>';
 				}
@@ -1796,15 +1796,15 @@ HTMLCODE;
 				if ($selectOrder)
 				{
 					echo '<div class="videowhisperDropdown"><select class="videowhisperSelect" id="order_by' . $id . '" name="order_by' . $id . '" onchange="aurl' . $id . '=\'' . $ajaxurlPC.'&ob=\'+ this.value; loadChannels' . $id . '(\'Ordering channels...\')">';
-					echo '<option value="">' . __('Order By', 'videosharevod') . ':</option>';
+					echo '<option value="">' . __('Order By', 'livestreaming') . ':</option>';
 
-					echo '<option value="post_date"' . ($order_by == 'post_date'?' selected':'') . '>' . __('Creation Date', 'videosharevod') . '</option>';
+					echo '<option value="post_date"' . ($order_by == 'post_date'?' selected':'') . '>' . __('Creation Date', 'livestreaming') . '</option>';
 
-					echo '<option value="edate"' . ($order_by == 'edate'?' selected':'') . '>' . __('Broadcast Recently', 'videosharevod') . '</option>';
+					echo '<option value="edate"' . ($order_by == 'edate'?' selected':'') . '>' . __('Broadcast Recently', 'livestreaming') . '</option>';
 
-					echo '<option value="viewers"' . ($order_by == 'viewers'?' selected':'') . '>' . __('Current Viewers', 'videosharevod') . '</option>';
+					echo '<option value="viewers"' . ($order_by == 'viewers'?' selected':'') . '>' . __('Current Viewers', 'livestreaming') . '</option>';
 
-					echo '<option value="maxViewers"' . ($order_by == 'maxViewers'?' selected':'') . '>' . __('Maximum Viewers', 'videosharevod') . '</option>';
+					echo '<option value="maxViewers"' . ($order_by == 'maxViewers'?' selected':'') . '>' . __('Maximum Viewers', 'livestreaming') . '</option>';
 
 					echo '</select></div>';
 
@@ -3078,19 +3078,30 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 <BR> Path to latest FFMPEG. Required for transcoding of web based streams, generating snapshots for external broadcasting applications (requires <a href="http://www.videowhisper.com/?p=RTMP-Session-Control">rtmp session control</a> to notify plugin about these streams).
 <?php
 				echo "<BR>FFMPEG: ";
+				$cmd =$options['ffmpegPath'] . ' -version';
+				exec($cmd, $output, $returnvalue);
+				if ($returnvalue == 127)  echo "not detected: $cmd"; else
+				{
+				echo "detected";
+				echo '<BR>' . $output[0];
+				echo '<BR>' . $output[1];
+				}
+
 				$cmd =$options['ffmpegPath'] . ' -codecs';
 				exec($cmd, $output, $returnvalue);
-				if ($returnvalue == 127)  echo "not detected: $cmd"; else echo "detected";
 
 				//detect codecs
 				if ($output) if (count($output))
-						foreach (array('h264','faac','speex', 'nellymoser') as $cod)
+				{
+					echo "<br>Codecs:";
+						foreach (array('h264', 'vp6', 'faac','speex', 'nellymoser') as $cod)
 						{
 							$det=0; $outd="";
 							echo "<BR>$cod codec: ";
 							foreach ($output as $outp) if (strstr($outp,$cod)) { $det=1; $outd=$outp; };
 							if ($det) echo "detected ($outd)"; else echo "missing: please configure and install ffmpeg with $cod";
 						}
+				}
 ?>
 
 <h4>FFMPEG Transcoding Parameters</h4>
@@ -3098,6 +3109,7 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 <BR>For lower server load and higher performance, web clients should be configured to broadcast video already suitable for target device (H.264 Baseline 3.1 for most iOS devices) so only audio needs to be encoded.
 <BR>Ex.(transcode audio for iOS): -vcodec copy -acodec libfaac -ac 2 -ar 22050 -ab 96k
 <BR>Ex.(transcode video+audio): -vcodec libx264 -s 480x360 -r 15 -vb 512k -x264opts vbv-maxrate=364:qpmin=4:ref=4 -coder 0 -bf 0 -analyzeduration 0 -level 3.1 -g 30 -maxrate 768k -acodec libfaac -ac 2 -ar 22050 -ab 96k
+<BR>For advanced settings see <a href="https://developer.apple.com/library/ios/technotes/tn2224/_index.html#//apple_ref/doc/uid/DTS40009745-CH1-SETTINGSFILES">iOS HLS Supported Codecs<a> and <a href="https://trac.ffmpeg.org/wiki/Encode/AAC">FFMPEG AAC Encoding Guide</a>.
 
 <h4>Disable Bandwidth Detection</h4>
 <p>Required on some rtmp servers that don't support bandwidth detection and return a Connection.Call.Fail error.</p>
