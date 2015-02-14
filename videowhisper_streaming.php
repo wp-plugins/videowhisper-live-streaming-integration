@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.17
+Version: 4.32.18
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -873,6 +873,22 @@ HTMLCODE;
 	        <?php
 		}
 
+
+		function single_template($single_template)
+		{
+
+			if (!is_single())  return $single_template;
+
+			$options = get_option('VWliveWebcamsOptions');
+			$postID = get_the_ID();
+			if (! get_post_type( $postID ) == $options['custom_post']) return $single_template;
+
+
+			$single_template = get_template_directory() . '/' . $options['postTemplate'];
+
+			return $single_template;
+		}
+
 		function nav_menu_item( $menu_item )
 		{
 
@@ -1032,10 +1048,12 @@ HTMLCODE;
 				return "Watch Error: Missing channel name!";
 			}
 
-			//HLS if iOS detected
+			//HLS if iOS/Android detected
 			$agent = $_SERVER['HTTP_USER_AGENT'];
-			if( strstr($agent,'iPhone') || strstr($agent,'iPod') || strstr($agent,'iPad'))
-				return do_shortcode("[videowhisper_hls channel=\"$stream\"]");
+			$Android = stripos($agent,"Android");
+			$iOS = ( strstr($agent,'iPhone') || strstr($agent,'iPod') || strstr($agent,'iPad'));
+
+			if ($Android||$iOS) return do_shortcode("[videowhisper_hls channel=\"$stream\"]");
 
 			$afterCode = <<<HTMLCODE
 <br style="clear:both" />
@@ -1108,10 +1126,10 @@ HTMLCODE;
 			$transcoding = 0;
 
 			foreach ($output as $line) if (strstr($line, "ffmpeg"))
-					{
-						$transcoding = 1;
-						break;
-					}
+				{
+					$transcoding = 1;
+					break;
+				}
 
 			if ($transcoding) $streamName = "i_$stream";
 			else $streamName = $stream;
@@ -2006,7 +2024,7 @@ BODY
 
 				if ($transcoding)
 				{
-				echo '<script>
+					echo '<script>
 				var $j = jQuery.noConflict();
 
 			setTimeout(\'$j("#videowhisperTranscoder").html(ajax_load).load("'.$admin_ajax.'?action=vwls_trans&task=enable&stream='.$stream.'");\', 120000 );
@@ -2050,7 +2068,7 @@ BODY
 
 					//-vcodec copy
 					$cmd = $options['ffmpegPath'] .' ' .  $options['ffmpegTranscode'] . " -threads 1 -rtmp_pageurl \"http://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'] . "\" -rtmp_swfurl \"http://".$_SERVER['HTTP_HOST']."\" -f flv \"" .
-					$rtmpAddress . "/i_". $stream . "\" -i \"" . $rtmpAddressView ."/". $stream . "\" >&$log_file & ";
+						$rtmpAddress . "/i_". $stream . "\" -i \"" . $rtmpAddressView ."/". $stream . "\" >&$log_file & ";
 
 
 					//echo $cmd;
@@ -2068,7 +2086,7 @@ BODY
 						}
 
 
-				echo '<script>
+					echo '<script>
 				var $j = jQuery.noConflict();
 
 				setTimeout(\'$j("#videowhisperTranscoder").html(ajax_load).load("'.$admin_ajax.'?action=vwls_trans&task=enable&stream='.$stream.'");\', 5000 );
@@ -2273,6 +2291,8 @@ Software</a>.</p></div>';
 				'postChannels' => '1',
 				'userChannels' => '1',
 				'anyChannels' => '0',
+				'postTemplate' => 'page.php',
+
 				'disablePage' => '0',
 				'disablePageC' => '0',
 				'thumbWidth' => '240',
@@ -2628,7 +2648,6 @@ HTMLCODE
 		}
 
 		function adminMenu() {
-			//  add_options_page('Live Streaming Options', 'Live Streaming', 9, basename(__FILE__), array('VWliveStreaming', 'options'));
 
 			add_menu_page('Live Streaming', 'Live Streaming', 'manage_options', 'live-streaming', array('VWliveStreaming', 'options'), 'dashicons-video-alt',82);
 			add_submenu_page("live-streaming", "Live Streaming", "Settings", 'manage_options', "live-streaming", array('VWliveStreaming', 'options'));
@@ -2965,6 +2984,11 @@ align="absmiddle" border="0">Start Broadcasting</a>
 <BR><?php echo $root_url; ?>channel/chanel-name/hls - Video must be transcoded to HLS format for iOS or published directly in such format with external encoder.
 <BR><?php echo $root_url; ?>channel/chanel-name/external - Shows rtmp settings to use with external applications (if supported).
 
+<h4>Post Template Filename</h4>
+<input name="postTemplate" type="text" id="postTemplate" size="20" maxlength="64" value="<?php echo $options['postTemplate']?>"/>
+<br>Template file located in current theme folder, that should be used to render channel post page. Ex: page.php, single.php
+
+
 <h4>Maximum Broadcating Channels</h4>
 <input name="maxChannels" type="text" id="maxChannels" size="2" maxlength="4" value="<?php echo $options['maxChannels']?>"/>
 <BR>Maximum channels users are allowed to create from frontend if channel posts are enabled.
@@ -3082,9 +3106,9 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 				exec($cmd, $output, $returnvalue);
 				if ($returnvalue == 127)  echo "not detected: $cmd"; else
 				{
-				echo "detected";
-				echo '<BR>' . $output[0];
-				echo '<BR>' . $output[1];
+					echo "detected";
+					echo '<BR>' . $output[0];
+					echo '<BR>' . $output[1];
 				}
 
 				$cmd =$options['ffmpegPath'] . ' -codecs';
@@ -3092,8 +3116,8 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 
 				//detect codecs
 				if ($output) if (count($output))
-				{
-					echo "<br>Codecs:";
+					{
+						echo "<br>Codecs:";
 						foreach (array('h264', 'vp6', 'faac','speex', 'nellymoser') as $cod)
 						{
 							$det=0; $outd="";
@@ -3101,7 +3125,7 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 							foreach ($output as $outp) if (strstr($outp,$cod)) { $det=1; $outd=$outp; };
 							if ($det) echo "detected ($outd)"; else echo "missing: please configure and install ffmpeg with $cod";
 						}
-				}
+					}
 ?>
 
 <h4>FFMPEG Transcoding Parameters</h4>
@@ -3126,7 +3150,7 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 <input name="webKey" type="text" id="webKey" size="32" maxlength="64" value="<?php echo $options['webKey']?>"/>
 <BR>A web key can be used for <a href="http://www.videochat-scripts.com/videowhisper-rtmp-web-authetication-check/">VideoWhisper RTMP Web Session Check</a>.
 <?php
-					$admin_ajax = admin_url() . 'admin-ajax.php';
+				$admin_ajax = admin_url() . 'admin-ajax.php';
 
 				echo "<BR>webLogin:  ". htmlentities($admin_ajax."?action=vwls&amp;task=rtmp_login&amp;s=");
 				echo "<BR>webLogout: ". htmlentities($admin_ajax."?action=vwls&amp;task=rtmp_logout&amp;s=");
@@ -5060,5 +5084,8 @@ if (isset($liveStreaming)) {
 	}
 
 	add_action( 'bp_init', 'liveStreamingBP_init' );
+
+	add_filter( "single_template", array(&$liveStreaming,'single_template') );
+
 }
 ?>
