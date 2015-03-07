@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.19
+Version: 4.32.21
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -164,31 +164,7 @@ if (!class_exists("VWliveStreaming"))
 
 		}
 
-		function pre_get_posts($query)
-		{
 
-			//add channels to post listings
-			if(is_category() || is_tag())
-			{
-				$query_type = get_query_var('post_type');
-
-
-				if($query_type)
-				{
-					if (in_array('post',$query_type) && !in_array('channel',$query_type))
-						$query_type[] = 'channel';
-
-				}
-				else  //default
-					{
-					$query_type = array('post', 'channel');
-				}
-
-				$query->set('post_type', $query_type);
-			}
-
-			return $query;
-		}
 
 		function updatePages()
 		{
@@ -262,13 +238,28 @@ if (!class_exists("VWliveStreaming"))
 
 		}
 
+		//! set fc
+
+		//string contains any term for list (ie. banning)
+		function containsAny($name, $list)
+		{
+			$items = explode(',', $list);
+			foreach ($items as $item) if (stristr($name, trim($item))) return $item;
+
+				return 0;
+		}
+
 
 		//if any key matches any listing
 		function inList($keys, $data)
 		{
 			if (!$keys) return 0;
+			if (!$data) return 0;
+			if (strtolower(trim($data)) == 'all') return 1;
+			if (strtolower(trim($data)) == 'none') return 0;
 
 			$list=explode(",", strtolower(trim($data)));
+			if (in_array('All', $list)) return 1;
 
 			foreach ($keys as $key)
 				foreach ($list as $listing)
@@ -277,7 +268,7 @@ if (!class_exists("VWliveStreaming"))
 					return 0;
 		}
 
-
+		//! room fc
 		function roomURL($room)
 		{
 			global $wpdb;
@@ -296,6 +287,9 @@ if (!class_exists("VWliveStreaming"))
 			$count = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->posts $where" );
 			return apply_filters( 'get_usernumposts', $count, $userid );
 		}
+
+
+		//! Channel Validation
 
 		function channelInvalid( $channel, $broadcast =false)
 		{
@@ -340,15 +334,21 @@ if (!class_exists("VWliveStreaming"))
 
 				$options = get_option('VWliveStreamingOptions');
 
-			if ($channelR->type >=2)
-			{
+			if ($channelR->type >=2) //premium
+				{
 				$maximumBroadcastTime =  60 * $options['pBroadcastTime'];
 				$maximumWatchTime =  60 * $options['pWatchTime'];
+
+				$canWatch = $options['canWatchPremium'];
+				$watchList = $options['watchPremium'];
 			}
 			else
 			{
 				$maximumBroadcastTime =  60 * $options['broadcastTime'];
 				$maximumWatchTime =  60 * $options['watchTime'];
+
+				$canWatch = $options['canWatch'];
+				$watchList = $options['watchList'];
 			}
 
 			if (!$broadcast)
@@ -365,9 +365,54 @@ if (!class_exists("VWliveStreaming"))
 			}
 			else if ($maximumBroadcastTime) if ($channelR->btime >= $maximumBroadcastTime) return fm('Channel broadcast time exceeded!');
 
-					return ;
+
+					//user access validation
+
+					global $current_user;
+				get_currentuserinfo();
+
+			if ($current_user->ID != 0) //logged in
+				{
+				//access keys
+				$userkeys = $current_user->roles;
+				$userkeys[] = $current_user->ID;
+				$userkeys[] = $current_user->user_email;
+				$userkeys[] = $current_user->user_login;
+			}
+			else $userkeys[] = 'Guest';
+
+			//global access settings
+			switch ($canWatch)
+			{
+			case "members":
+				if (!$current_user->ID) return fm('Only registered members can access!');
+				break;
+
+			case "list";
+				if (!$current_user->ID || !VWliveStreaming::inList($userkeys, $watchList))
+					return fm('Access restricted by global access list!');
+				break;
+			}
+
+
+
+			$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $channel . "' and post_type='channel' LIMIT 0,1" );
+
+			if ($postID)    //post validations
+				{
+
+				// channel access list
+				$accessList = get_post_meta($postID, 'vw_accessList', true);
+				if ($accessList) if (!VWliveStreaming::inList($userkeys, $accessList)) return fm('Access restricted by channel access list!');
+			}
+
+			//valid then
+			return ;
 
 		}
+
+		//! Shortcodes
+
 
 		function shortcode_manage()
 		{
@@ -391,7 +436,6 @@ if (!class_exists("VWliveStreaming"))
 			$userkeys[] = $current_user->user_login;
 			$userkeys[] = $current_user->ID;
 			$userkeys[] = $current_user->user_email;
-			$userkeys[] = $current_user->display_name;
 
 			switch ($canBroadcast)
 			{
@@ -433,10 +477,10 @@ if (!class_exists("VWliveStreaming"))
 			$channels_count = VWliveStreaming::count_user_posts_by_type($current_user->ID, 'channel');
 
 			//setup
-			$postID = $_POST['editPost'];
+			$postID = $_POST['editPost']; //-1 for new
 
-			if ($postID)
-			{
+			if ($postID) //create or update
+				{
 				if ($postID <= 0 && $channels_count >= $maxChannels)
 					$htmlCode .= "<div class='error'>Maximum ". $options['maxChannels']." channels allowed per user!</div>";
 				else
@@ -469,6 +513,32 @@ if (!class_exists("VWliveStreaming"))
 					if ($postID) wp_set_post_categories($postID, array($category));
 
 					$channels_count = VWliveStreaming::count_user_posts_by_type($current_user->ID, 'channel');
+
+					//accessList
+					if (VWliveStreaming::inList($userkeys, $options['accessList']))
+					{
+						$accessList = sanitize_text_field($_POST['accessList']);
+						update_post_meta($postID, 'vw_accessList', $accessList);
+					}
+
+
+					if (VWliveStreaming::inList($userkeys, $options['accessPrice']))
+					{
+						$accessPrice = round($_POST['accessPrice'],2);
+						update_post_meta($postID, 'vw_accessPrice', $accessPrice);
+
+						$mCa = array(
+							'status'       => 'enabled',
+							'price'        => $accessPrice,
+							'button_label' => 'Buy Access Now', // default button label
+							'expire'       => 0 // default no expire
+						);
+
+						if ($options['mycred'] && $accessPrice) update_post_meta($postID, 'myCRED_sell_content', $mCa);
+						else delete_post_meta($postID, 'myCRED_sell_content');
+
+
+					}
 
 				}
 
@@ -639,6 +709,28 @@ if (!class_exists("VWliveStreaming"))
 
 			$categories = wp_dropdown_categories('show_count=1&echo=0&name=newcategory&hide_empty=0&selected=' . $newCat);
 
+			//channel features
+			$extraRows = '';
+
+			//accessList
+			if (VWliveStreaming::inList($userkeys, $options['accessList']))
+			{
+				if ($editPost) $value = get_post_meta( $editPost, 'vw_accessList', true );
+				else $value = '';
+
+				$extraRows .= '<tr><td>Access List</td><td><textarea rows=2 name="accessList" id="accessList">' . $value . '</textarea><BR>User roles, logins, emails separated by comma. Leave empty to allow everybody to access.</td></tr>';
+			}
+
+			//accessPrice
+			if (VWliveStreaming::inList($userkeys, $options['accessPrice']))
+			{
+				if ($editPost) $value = get_post_meta( $editPost, 'vw_accessPrice', true );
+				else $value = '';
+
+				$extraRows .= '<tr><td>Access Price</td><td><input size=5 name="accessPrice" id="accessPrice" value="' . $value . '"><BR>Channel access price. Leave 0 for free access.</td></tr>';
+			}
+
+
 			if ($editPost > 0 || $channels_count < $maxChannels)
 				$htmlCode .= <<<HTMLCODE
 <script language="JavaScript">
@@ -665,6 +757,7 @@ if (!class_exists("VWliveStreaming"))
 <tr><td>Description</td><td><textarea rows=3 name='description' id='description'>$newDescription</textarea></td></tr>
 <tr><td>Category</td><td>$categories</td></tr>
 <tr><td>Comments</td><td>$commentsCode</td></tr>
+$extraRows
 <tr><td></td><td><input class="videowhisperButton g-btn type_primary" type="submit" name="button" id="button" value="Setup" /></td></tr>
 </table>
 <input type="hidden" name="editPost" id="editPost" value="$editPost" />
@@ -678,252 +771,6 @@ HTMLCODE;
 
 		}
 
-		function admin_init()
-		{
-			add_meta_box(
-				'vwls-nav-menus',
-				'Channel Categories',
-				array('VWliveStreaming', 'nav_menus'),
-				'nav-menus',
-				'side',
-				'default');
-		}
-
-		function nav_menus()
-		{
-
-			//$object, $taxonomy
-
-			global $nav_menu_selected_id;
-			$taxonomy_name = 'category';
-
-			// Paginate browsing for large numbers of objects.
-			$per_page = 50;
-			$pagenum = isset( $_REQUEST[$taxonomy_name . '-tab'] ) && isset( $_REQUEST['paged'] ) ? absint( $_REQUEST['paged'] ) : 1;
-			$offset = 0 < $pagenum ? $per_page * ( $pagenum - 1 ) : 0;
-
-			$args = array(
-				'child_of' => 0,
-				'exclude' => '',
-				'hide_empty' => false,
-				'hierarchical' => 1,
-				'include' => '',
-				'number' => $per_page,
-				'offset' => $offset,
-				'order' => 'ASC',
-				'orderby' => 'name',
-				'pad_counts' => false,
-			);
-
-			$terms = get_terms( $taxonomy_name, $args );
-
-			if ( ! $terms || is_wp_error($terms) ) {
-				echo '<p>' . __( 'No items.' ) . '</p>';
-				return;
-			}
-
-			$num_pages = ceil( wp_count_terms( $taxonomy_name , array_merge( $args, array('number' => '', 'offset' => '') ) ) / $per_page );
-
-			$page_links = paginate_links( array(
-					'base' => add_query_arg(
-						array(
-							$taxonomy_name . '-tab' => 'all',
-							'paged' => '%#%',
-							'item-type' => 'taxonomy',
-							'item-object' => $taxonomy_name,
-						)
-					),
-					'format' => '',
-					'prev_text' => __('&laquo;'),
-					'next_text' => __('&raquo;'),
-					'total' => $num_pages,
-					'current' => $pagenum
-				));
-
-			$db_fields = false;
-			if ( is_taxonomy_hierarchical( $taxonomy_name ) ) {
-				$db_fields = array( 'parent' => 'parent', 'id' => 'term_id' );
-			}
-
-			$walker = new Walker_Nav_Menu_Checklist( $db_fields );
-
-			$current_tab = 'most-used';
-			if ( isset( $_REQUEST[$taxonomy_name . '-tab'] ) && in_array( $_REQUEST[$taxonomy_name . '-tab'], array('all', 'most-used', 'search') ) ) {
-				$current_tab = $_REQUEST[$taxonomy_name . '-tab'];
-			}
-
-			if ( ! empty( $_REQUEST['quick-search-taxonomy-' . $taxonomy_name] ) ) {
-				$current_tab = 'search';
-			}
-
-			$removed_args = array(
-				'action',
-				'customlink-tab',
-				'edit-menu-item',
-				'menu-item',
-				'page-tab',
-				'_wpnonce',
-			);
-
-?>
-	<div id="taxonomy-<?php echo $taxonomy_name; ?>" class="taxonomydiv">
-		<ul id="taxonomy-<?php echo $taxonomy_name; ?>-tabs" class="taxonomy-tabs add-menu-item-tabs">
-			<li <?php echo ( 'most-used' == $current_tab ? ' class="tabs"' : '' ); ?>>
-				<a class="nav-tab-link" data-type="tabs-panel-<?php echo esc_attr( $taxonomy_name ); ?>-pop" href="<?php if ( $nav_menu_selected_id ) echo esc_url(add_query_arg($taxonomy_name . '-tab', 'most-used', remove_query_arg($removed_args))); ?>#tabs-panel-<?php echo $taxonomy_name; ?>-pop">
-					<?php _e( 'Most Used' ); ?>
-				</a>
-			</li>
-			<li <?php echo ( 'all' == $current_tab ? ' class="tabs"' : '' ); ?>>
-				<a class="nav-tab-link" data-type="tabs-panel-<?php echo esc_attr( $taxonomy_name ); ?>-all" href="<?php if ( $nav_menu_selected_id ) echo esc_url(add_query_arg($taxonomy_name . '-tab', 'all', remove_query_arg($removed_args))); ?>#tabs-panel-<?php echo $taxonomy_name; ?>-all">
-					<?php _e( 'View All' ); ?>
-				</a>
-			</li>
-			<li <?php echo ( 'search' == $current_tab ? ' class="tabs"' : '' ); ?>>
-				<a class="nav-tab-link" data-type="tabs-panel-search-taxonomy-<?php echo esc_attr( $taxonomy_name ); ?>" href="<?php if ( $nav_menu_selected_id ) echo esc_url(add_query_arg($taxonomy_name . '-tab', 'search', remove_query_arg($removed_args))); ?>#tabs-panel-search-taxonomy-<?php echo $taxonomy_name; ?>">
-					<?php _e( 'Search' ); ?>
-				</a>
-			</li>
-		</ul><!-- .taxonomy-tabs -->
-
-		<div id="tabs-panel-<?php echo $taxonomy_name; ?>-pop" class="tabs-panel <?php
-			echo ( 'most-used' == $current_tab ? 'tabs-panel-active' : 'tabs-panel-inactive' );
-			?>">
-			<ul id="<?php echo $taxonomy_name; ?>checklist-pop" class="categorychecklist form-no-clear" >
-				<?php
-			$popular_terms = get_terms( $taxonomy_name, array( 'orderby' => 'count', 'order' => 'DESC', 'number' => 10, 'hierarchical' => false ) );
-			$args['walker'] = $walker;
-			echo walk_nav_menu_tree( array_map(array('VWliveStreaming', 'nav_menu_item'), $popular_terms), 0, (object) $args );
-?>
-			</ul>
-		</div><!-- /.tabs-panel -->
-
-		<div id="tabs-panel-<?php echo $taxonomy_name; ?>-all" class="tabs-panel tabs-panel-view-all <?php
-			echo ( 'all' == $current_tab ? 'tabs-panel-active' : 'tabs-panel-inactive' );
-			?>">
-			<?php if ( ! empty( $page_links ) ) : ?>
-				<div class="add-menu-item-pagelinks">
-					<?php echo $page_links; ?>
-				</div>
-			<?php endif; ?>
-			<ul id="<?php echo $taxonomy_name; ?>checklist" data-wp-lists="list:<?php echo $taxonomy_name?>" class="categorychecklist form-no-clear">
-				<?php
-			$args['walker'] = $walker;
-			echo walk_nav_menu_tree( array_map(array('VWliveStreaming', 'nav_menu_item'), $terms), 0, (object) $args );
-?>
-			</ul>
-			<?php if ( ! empty( $page_links ) ) : ?>
-				<div class="add-menu-item-pagelinks">
-					<?php echo $page_links; ?>
-				</div>
-			<?php endif; ?>
-		</div><!-- /.tabs-panel -->
-
-		<div class="tabs-panel <?php
-			echo ( 'search' == $current_tab ? 'tabs-panel-active' : 'tabs-panel-inactive' );
-			?>" id="tabs-panel-search-taxonomy-<?php echo $taxonomy_name; ?>">
-			<?php
-			if ( isset( $_REQUEST['quick-search-taxonomy-' . $taxonomy_name] ) ) {
-				$searched = esc_attr( $_REQUEST['quick-search-taxonomy-' . $taxonomy_name] );
-				$search_results = get_terms( $taxonomy_name, array( 'name__like' => $searched, 'fields' => 'all', 'orderby' => 'count', 'order' => 'DESC', 'hierarchical' => false ) );
-			} else {
-				$searched = '';
-				$search_results = array();
-			}
-?>
-			<p class="quick-search-wrap">
-				<input type="search" class="quick-search input-with-default-title" title="<?php esc_attr_e('Search'); ?>" value="<?php echo $searched; ?>" name="quick-search-taxonomy-<?php echo $taxonomy_name; ?>" />
-				<span class="spinner"></span>
-				<?php submit_button( __( 'Search' ), 'button-small quick-search-submit button-secondary hide-if-js', 'submit', false, array( 'id' => 'submit-quick-search-taxonomy-' . $taxonomy_name ) ); ?>
-			</p>
-
-			<ul id="<?php echo $taxonomy_name; ?>-search-checklist" data-wp-lists="list:<?php echo $taxonomy_name?>" class="categorychecklist form-no-clear">
-			<?php if ( ! empty( $search_results ) && ! is_wp_error( $search_results ) ) : ?>
-				<?php
-				$args['walker'] = $walker;
-			echo walk_nav_menu_tree( array_map(array('VWliveStreaming', 'nav_menu_item'), $search_results), 0, (object) $args );
-?>
-			<?php elseif ( is_wp_error( $search_results ) ) : ?>
-				<li><?php echo $search_results->get_error_message(); ?></li>
-			<?php elseif ( ! empty( $searched ) ) : ?>
-				<li><?php _e('No results found.'); ?></li>
-			<?php endif; ?>
-			</ul>
-		</div><!-- /.tabs-panel -->
-
-		<p class="button-controls">
-			<span class="list-controls">
-				<a href="<?php
-			echo esc_url(add_query_arg(
-					array(
-						$taxonomy_name . '-tab' => 'all',
-						'selectall' => 1,
-					),
-					remove_query_arg($removed_args)
-				));
-			?>#taxonomy-<?php echo $taxonomy_name; ?>" class="select-all"><?php _e('Select All'); ?></a>
-			</span>
-
-			<span class="add-to-menu">
-				<input type="submit"<?php wp_nav_menu_disabled_check( $nav_menu_selected_id ); ?> class="button-secondary submit-add-to-menu right" value="<?php esc_attr_e( 'Add to Menu' ); ?>" name="add-taxonomy-menu-item" id="<?php echo esc_attr( 'submit-taxonomy-' . $taxonomy_name ); ?>" />
-				<span class="spinner"></span>
-			</span>
-		</p>
-
-	</div><!-- /.taxonomydiv -->
-	        <?php
-		}
-
-
-		function single_template($single_template)
-		{
-
-			if (!is_single())  return $single_template;
-
-			$options = get_option('VWliveStreamingOptions');
-			$postID = get_the_ID();
-			if (! get_post_type( $postID ) == $options['custom_post']) return $single_template;
-
-
-			$single_template = get_template_directory() . '/' . $options['postTemplate'];
-
-			return $single_template;
-		}
-
-		function nav_menu_item( $menu_item )
-		{
-
-			$menu_item->ID = $menu_item->term_id;
-			$menu_item->db_id = 0;
-			$menu_item->menu_item_parent = 0;
-			$menu_item->object_id = (int) $menu_item->term_id;
-			$menu_item->post_parent = (int) $menu_item->parent;
-			$menu_item->type = 'custom';
-
-			$object = get_taxonomy( $menu_item->taxonomy );
-			$menu_item->object = $object->name;
-			$menu_item->type_label = $object->labels->singular_name;
-
-			$menu_item->title = $menu_item->name;
-
-			$options = get_option('VWliveStreamingOptions');
-			if ($options['disablePageC']=='0')
-			{
-				$page_id = get_option("vwls_page_channels");
-				$permalink = get_permalink( $page_id);
-				$menu_item->url = add_query_arg(array('cid' => $menu_item->object_id, 'category' => $menu_item->name), $permalink);
-			} else $menu_item->url = get_term_link( $menu_item, $menu_item->taxonomy ) . '?channels=1' ;
-
-			$menu_item->target = '';
-			$menu_item->attr_title = '';
-			$menu_item->description = get_term_field( 'description', $menu_item->term_id, $menu_item->taxonomy );
-			$menu_item->classes = array();
-			$menu_item->xfn = '';
-
-			/**
-			 * @param object $menu_item The menu item object.
-			 */
-			return $menu_item;
-		}
 
 
 		function shortcode_channels($atts)
@@ -1519,211 +1366,6 @@ HTMLCODE;
 		}
 
 
-		function channel_page($content)
-		{
-
-			$options = get_option('VWliveStreamingOptions');
-			if (!$options['postChannels']) return $content;
-
-			if (!is_single()) return $content;
-			$postID = get_the_ID() ;
-			if (get_post_type( $postID ) != 'channel') return $content;
-
-			$stream = sanitize_file_name(get_the_title($postID));
-
-			global $wp_query;
-			if( array_key_exists( 'broadcast' , $wp_query->query_vars ) )
-			{
-				if (! $addCode = VWliveStreaming::channelInvalid($stream, true))
-					$addCode = '[videowhisper_broadcast]';
-			}
-			elseif( array_key_exists( 'video' , $wp_query->query_vars ) )
-			{
-				if (! $addCode = VWliveStreaming::channelInvalid($stream))
-					$addCode = '[videowhisper_video]';
-			}
-			elseif( array_key_exists( 'hls' , $wp_query->query_vars ) )
-			{
-				if (! $addCode = VWliveStreaming::channelInvalid($stream))
-					$addCode = '[videowhisper_hls]';
-			}
-			elseif( array_key_exists( 'external' , $wp_query->query_vars ) )
-			{
-				$addCode = '[videowhisper_external]';
-				$content = '';
-			}
-			else
-			{
-				if (! $addCode = VWliveStreaming::channelInvalid($stream))
-					$addCode = "" . '[videowhisper_watch]';
-			}
-
-			//set thumb
-			$dir = $options['uploadsPath']. "/_snapshots";
-			$thumbFilename = "$dir/$stream.jpg";
-
-			//only if file exists and missing post thumb
-			if ( file_exists($thumbFilename) && !get_post_thumbnail_id( $postID ))
-			{
-				$wp_filetype = wp_check_filetype(basename($thumbFilename), null );
-
-				$attachment = array(
-					'guid' => $thumbFilename,
-					'post_mime_type' => $wp_filetype['type'],
-					'post_title' => preg_replace( '/\.[^.]+$/', '', basename( $thumbFilename, ".jpg" ) ),
-					'post_content' => '',
-					'post_status' => 'inherit'
-				);
-
-				$attach_id = wp_insert_attachment( $attachment, $thumbFilename, $postID );
-				set_post_thumbnail($postID, $attach_id);
-
-				require_once( ABSPATH . 'wp-admin/includes/image.php' );
-				$attach_data = wp_generate_attachment_metadata( $attach_id, $thumbFilename );
-				wp_update_attachment_metadata( $attach_id, $attach_data );
-			}
-
-			$maxViewers =  get_post_meta($postID, 'maxViewers', true);
-			if (!is_array($maxViewers)) if ($maxViewers>0)
-				{
-					$maxDate = (int) get_post_meta($postID, 'maxDate', true);
-					$addCode .= __('Maximum viewers','livestreaming') . ': ' . $maxViewers;
-					if ($maxDate) $addCode .= ' on ' . date("F j, Y, g:i a", $maxDate);
-				}
-
-			return $addCode . $content;
-		}
-
-
-		function columns_head_channel($defaults) {
-			$defaults['featured_image'] = 'Snapshot';
-			$defaults['edate'] = 'Last Online';
-
-			return $defaults;
-		}
-
-		function columns_register_sortable( $columns ) {
-			$columns['edate'] = 'edate';
-
-			return $columns;
-		}
-
-
-		function columns_content_channel($column_name, $post_id)
-		{
-
-			if ($column_name == 'featured_image')
-			{
-
-				global $wpdb;
-				$postName = $wpdb->get_var( "SELECT post_name FROM $wpdb->posts WHERE ID = '" . $post_id . "' and post_type='channel' LIMIT 0,1" );
-
-				if ($postName)
-				{
-					$options = get_option('VWliveStreamingOptions');
-					$dir = $options['uploadsPath']. "/_thumbs";
-					$thumbFilename = "$dir/" . $postName . ".jpg";
-
-					$url = VWliveStreaming::roomURL($postName);
-
-					if (file_exists($thumbFilename)) echo '<a href="' . $url . '"><IMG src="' . VWliveStreaming::path2url($thumbFilename) .'" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
-
-				}
-
-
-
-			}
-
-			if ($column_name == 'edate')
-			{
-				$edate = get_post_meta($post_id, 'edate', true);
-				if ($edate)
-				{
-					echo ' ' . VWliveStreaming::format_age(time() - $edate);
-
-				}
-
-
-			}
-
-		}
-
-		function duration_column_orderby( $vars ) {
-			if ( isset( $vars['orderby'] ) && 'edate' == $vars['orderby'] ) {
-				$vars = array_merge( $vars, array(
-						'meta_key' => 'edate',
-						'orderby' => 'meta_value_num'
-					) );
-			}
-
-			return $vars;
-		}
-
-
-		function channel_query_vars( $query_vars ){
-			// array of recognized query vars
-			$query_vars[] = 'broadcast';
-			$query_vars[] = 'video';
-			$query_vars[] = 'hls';
-			$query_vars[] = 'external';
-			return $query_vars;
-		}
-
-		// Register Custom Post Type
-		function channel_post() {
-
-			$options = get_option('VWliveStreamingOptions');
-			if (!$options['postChannels']) return;
-
-			//only if missing
-			if (post_type_exists('channel')) return;
-
-			$labels = array(
-				'name'                => _x( 'Channels', 'Post Type General Name', 'text_domain' ),
-				'singular_name'       => _x( 'Channel', 'Post Type Singular Name', 'text_domain' ),
-				'menu_name'           => __( 'Channels', 'text_domain' ),
-				'parent_item_colon'   => __( 'Parent Channel:', 'text_domain' ),
-				'all_items'           => __( 'All Channels', 'text_domain' ),
-				'view_item'           => __( 'View Channel', 'text_domain' ),
-				'add_new_item'        => __( 'Add New Channel', 'text_domain' ),
-				'add_new'             => __( 'New Channel', 'text_domain' ),
-				'edit_item'           => __( 'Edit Channel', 'text_domain' ),
-				'update_item'         => __( 'Update Channel', 'text_domain' ),
-				'search_items'        => __( 'Search Channels', 'text_domain' ),
-				'not_found'           => __( 'No Channels found', 'text_domain' ),
-				'not_found_in_trash'  => __( 'No Channels found in Trash', 'text_domain' ),
-			);
-			$args = array(
-				'label'               => __( 'channel', 'text_domain' ),
-				'description'         => __( 'Video Channels', 'text_domain' ),
-				'labels'              => $labels,
-				'supports'            => array( 'title', 'editor', 'author', 'thumbnail', 'comments', 'custom-fields', 'page-attributes', ),
-				'taxonomies'          => array( 'category', 'post_tag' ),
-				'hierarchical'        => false,
-				'public'              => true,
-				'show_ui'             => true,
-				'show_in_menu'        => true,
-				'show_in_nav_menus'   => true,
-				'show_in_admin_bar'   => true,
-				'menu_position'       => 5,
-				'can_export'          => true,
-				'has_archive'         => true,
-				'exclude_from_search' => false,
-				'publicly_queryable'  => true,
-				'menu_icon' => 'dashicons-video-alt',
-				'capability_type'     => 'post',
-			);
-			register_post_type( 'channel', $args );
-
-			add_rewrite_endpoint( 'broadcast', EP_ALL );
-			add_rewrite_endpoint( 'video', EP_ALL );
-			add_rewrite_endpoint( 'hls', EP_ALL );
-			add_rewrite_endpoint( 'external', EP_ALL );
-
-			flush_rewrite_rules();
-
-		}
-
 
 		function path2url($file, $Protocol='http://')
 		{
@@ -1741,6 +1383,7 @@ HTMLCODE;
 			if ($t<30) return "LIVE";
 			return sprintf("%d%s%d%s%d%s", floor($t/86400), 'd ', ($t/3600)%24,'h ', ($t/60)%60,'m');
 		}
+
 
 		function vwls_channels() //list channels
 			{
@@ -2220,6 +1863,15 @@ Streaming Software</a>.</p></div>';
 			echo $livesnapshotsCode;
 		}
 
+		//! Widget
+
+		function widget($args) {
+			extract($args);
+			echo $before_widget;
+			echo $before_title;?>Live Streaming<?php echo $after_title;
+			VWliveStreaming::widgetContent();
+			echo $after_widget;
+		}
 
 		function widgetContent()
 		{
@@ -2272,310 +1924,488 @@ Streaming Software</a>.</p></div>';
 Software</a>.</p></div>';
 		}
 
-		function widget($args) {
-			extract($args);
-			echo $before_widget;
-			echo $before_title;?>Live Streaming<?php echo $after_title;
-			VWliveStreaming::widgetContent();
-			echo $after_widget;
+
+		//! Channel Post
+
+		function channel_page($content)
+		{
+
+			$options = get_option('VWliveStreamingOptions');
+			if (!$options['postChannels']) return $content;
+
+			if (!is_single()) return $content;
+			$postID = get_the_ID() ;
+			if (get_post_type( $postID ) != 'channel') return $content;
+
+			$stream = sanitize_file_name(get_the_title($postID));
+
+			global $wp_query;
+			if( array_key_exists( 'broadcast' , $wp_query->query_vars ) )
+			{
+				if (! $addCode = VWliveStreaming::channelInvalid($stream, true))
+					$addCode = '[videowhisper_broadcast]';
+			}
+			elseif( array_key_exists( 'video' , $wp_query->query_vars ) )
+			{
+				if (! $addCode = VWliveStreaming::channelInvalid($stream))
+					$addCode = '[videowhisper_video]';
+			}
+			elseif( array_key_exists( 'hls' , $wp_query->query_vars ) )
+			{
+				if (! $addCode = VWliveStreaming::channelInvalid($stream))
+					$addCode = '[videowhisper_hls]';
+			}
+			elseif( array_key_exists( 'external' , $wp_query->query_vars ) )
+			{
+				$addCode = '[videowhisper_external]';
+				$content = '';
+			}
+			else
+			{
+				if (! $addCode = VWliveStreaming::channelInvalid($stream))
+					$addCode = "" . '[videowhisper_watch]';
+			}
+
+			//set thumb
+			$dir = $options['uploadsPath']. "/_snapshots";
+			$thumbFilename = "$dir/$stream.jpg";
+
+			//only if file exists and missing post thumb
+			if ( file_exists($thumbFilename) && !get_post_thumbnail_id( $postID ))
+			{
+				$wp_filetype = wp_check_filetype(basename($thumbFilename), null );
+
+				$attachment = array(
+					'guid' => $thumbFilename,
+					'post_mime_type' => $wp_filetype['type'],
+					'post_title' => preg_replace( '/\.[^.]+$/', '', basename( $thumbFilename, ".jpg" ) ),
+					'post_content' => '',
+					'post_status' => 'inherit'
+				);
+
+				$attach_id = wp_insert_attachment( $attachment, $thumbFilename, $postID );
+				set_post_thumbnail($postID, $attach_id);
+
+				require_once( ABSPATH . 'wp-admin/includes/image.php' );
+				$attach_data = wp_generate_attachment_metadata( $attach_id, $thumbFilename );
+				wp_update_attachment_metadata( $attach_id, $attach_data );
+			}
+
+			$maxViewers =  get_post_meta($postID, 'maxViewers', true);
+			if (!is_array($maxViewers)) if ($maxViewers>0)
+				{
+					$maxDate = (int) get_post_meta($postID, 'maxDate', true);
+					$addCode .= __('Maximum viewers','livestreaming') . ': ' . $maxViewers;
+					if ($maxDate) $addCode .= ' on ' . date("F j, Y, g:i a", $maxDate);
+				}
+
+			return $addCode . $content;
+		}
+
+		function pre_get_posts($query)
+		{
+
+			//add channels to post listings
+			if(is_category() || is_tag())
+			{
+				$query_type = get_query_var('post_type');
+
+
+				if($query_type)
+				{
+					if (in_array('post',$query_type) && !in_array('channel',$query_type))
+						$query_type[] = 'channel';
+
+				}
+				else  //default
+					{
+					$query_type = array('post', 'channel');
+				}
+
+				$query->set('post_type', $query_type);
+			}
+
+			return $query;
+		}
+
+		function columns_head_channel($defaults) {
+			$defaults['featured_image'] = 'Snapshot';
+			$defaults['edate'] = 'Last Online';
+
+			return $defaults;
+		}
+
+		function columns_register_sortable( $columns ) {
+			$columns['edate'] = 'edate';
+
+			return $columns;
 		}
 
 
-		function setupOptions() {
+		function columns_content_channel($column_name, $post_id)
+		{
 
-			$root_url = get_bloginfo( "url" ) . "/";
-			$upload_dir = wp_upload_dir();
+			if ($column_name == 'featured_image')
+			{
 
-			$adminOptions = array(
-				'userName' => 'user_nicename',
-				'postChannels' => '1',
-				'userChannels' => '1',
-				'anyChannels' => '0',
-				'custom_post' => 'channel',
-				'postTemplate' => 'page.php',
+				global $wpdb;
+				$postName = $wpdb->get_var( "SELECT post_name FROM $wpdb->posts WHERE ID = '" . $post_id . "' and post_type='channel' LIMIT 0,1" );
 
-				'disablePage' => '0',
-				'disablePageC' => '0',
-				'thumbWidth' => '240',
-				'thumbHeight' => '180',
-				'perPage' =>'6',
+				if ($postName)
+				{
+					$options = get_option('VWliveStreamingOptions');
+					$dir = $options['uploadsPath']. "/_thumbs";
+					$thumbFilename = "$dir/" . $postName . ".jpg";
 
+					$url = VWliveStreaming::roomURL($postName);
 
-				'postName' => 'custom',
+					if (file_exists($thumbFilename)) echo '<a href="' . $url . '"><IMG src="' . VWliveStreaming::path2url($thumbFilename) .'" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px"></a>';
 
-				'rtmp_server' => 'rtmp://localhost/videowhisper',
-				'rtmp_amf' => 'AMF3',
-				'httpstreamer' => 'http://localhost:1935/videowhisper-x/',
-				'ffmpegPath' => '/usr/local/bin/ffmpeg',
-				'ffmpegTranscode' => '-analyzeduration 0 -vcodec copy -acodec libfaac -ac 2 -ar 22050 -ab 96k',
-
-				'canBroadcast' => 'members',
-				'broadcastList' => 'Super Admin, Administrator, Editor, Author',
-				'maxChannels' => '2',
-				'externalKeys' => '1',
-				'externalKeysTranscoder' => '1',
-				'rtmpStatus' => '0',
+				}
 
 
-				'canWatch' => 'all',
-				'watchList' => 'Super Admin, Administrator, Editor, Author, Contributor, Subscriber',
-				'onlyVideo' => '0',
-				'noEmbeds' => '0',
 
-				'premiumList' => 'Super Admin, Administrator, Editor, Author',
-				'canWatchPremium' => 'all',
-				'watchListPremium' => 'Super Admin, Administrator, Editor, Author, Contributor, Subscriber',
-				'pLogo' => '1',
-				'broadcastTime' => '0',
-				'watchTime' => '0',
-				'pBroadcastTime' => '0',
-				'pWatchTime' => '0',
-				'timeReset' => '30',
-				'bannedNames' => 'bann1, bann2',
+			}
 
-				'camResolution' => '480x360',
-				'camFPS' => '15',
+			if ($column_name == 'edate')
+			{
+				$edate = get_post_meta($post_id, 'edate', true);
+				if ($edate)
+				{
+					echo ' ' . VWliveStreaming::format_age(time() - $edate);
 
-				'camBandwidth' => '40960',
-				'camMaxBandwidth' => '81920',
-				'pCamBandwidth' => '65536',
-				'pCamMaxBandwidth' => '163840',
-				'transcoding' => '1',
-
-				'videoCodec'=>'H264',
-				'codecProfile' => 'baseline',
-				'codecLevel' => '3.1',
-
-				'soundCodec'=> 'Speex',
-				'soundQuality' => '9',
-				'micRate' => '22',
-
-				'onlineExpiration0' =>'310',
-				'onlineExpiration1' =>'40',
-				'parameters' => '&bufferLive=1&bufferFull=1&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&disableVideo=0&disableChat=0&disableUsers=0&fillWindow=0&adsTimeout=15000&externalInterval=360000&statusInterval=300000',
-				'parametersBroadcaster' => '&bufferLive=2&bufferFull=2&showCamSettings=1&advancedCamSettings=1&configureSource=1&generateSnapshots=1&snapshotsTime=60000&room_limit=500&showTimer=1&showCredit=1&disconnectOnTimeout=1&externalInterval=360000&statusInterval=30000',
-
-				'overLogo' => $root_url .'wp-content/plugins/videowhisper-live-streaming-integration/ls/logo.png',
-				'overLink' => 'http://www.videowhisper.com',
-				'adServer' => 'ads',
-				'adsInterval' => '20000',
-				'adsCode' => '<B>Sample Ad</B><BR>Edit ads from plugin settings. Also edit  Ads Interval in milliseconds (0 to disable ad calls).  Also see <a href="http://www.adinchat.com" target="_blank"><U><B>AD in Chat</B></U></a> compatible ad management server for setting up ad rotation. Ads do not show on premium channels.',
-
-				'translationCode' => '<t text="Video is Disabled" translation="Video is Disabled"/>
-<t text="Bold" translation="Bold"/>
-<t text="Sound is Enabled" translation="Sound is Enabled"/>
-<t text="Publish a video stream using the settings below without any spaces." translation="Publish a video stream using the settings below without any spaces."/>
-<t text="Click Preview for Streaming Settings" translation="Click Preview for Streaming Settings"/>
-<t text="DVD NTSC" translation="DVD NTSC"/>
-<t text="DVD PAL" translation="DVD PAL"/>
-<t text="Video Source" translation="Video Source"/>
-<t text="Send" translation="Send"/>
-<t text="Cinema" translation="Cinema"/>
-<t text="Update Show Title" translation="Update Show Title"/>
-<t text="Public Channel: Click to Copy" translation="Public Channel: Click to Copy"/>
-<t text="Channel Link" translation="Channel Link"/>
-<t text="Kick" translation="Kick"/>
-<t text="Embed Channel HTML Code" translation="Embed Channel HTML Code"/>
-<t text="Open In Browser" translation="Open In Browser"/>
-<t text="Embed Video HTML Code" translation="Embed Video HTML Code"/>
-<t text="Snapshot Image Link" translation="Snapshot Image Link"/>
-<t text="SD" translation="SD"/>
-<t text="External Encoder" translation="External Encoder"/>
-<t text="Source" translation="Source"/>
-<t text="Very Low" translation="Very Low"/>
-<t text="Low" translation="Low"/>
-<t text="HDTV" translation="HDTV"/>
-<t text="Webcam" translation="Webcam"/>
-<t text="Resolution" translation="Resolution"/>
-<t text="Emoticons" translation="Emoticons"/>
-<t text="HDCAM" translation="HDCAM"/>
-<t text="FullHD" translation="FullHD"/>
-<t text="Preview Shows as Compressed" translation="Preview Shows as Compressed"/>
-<t text="Rate" translation="Rate"/>
-<t text="Very Good" translation="Very Good"/>
-<t text="Preview Shows as Captured" translation="Preview Shows as Captured"/>
-<t text="Framerate" translation="Framerate"/>
-<t text="High" translation="High"/>
-<t text="Toggle Preview Compression" translation="Toggle Preview Compression"/>
-<t text="Latency" translation="Latency"/>
-<t text="CD" translation="CD"/>
-<t text="Your connection performance:" translation="Your connection performance:"/>
-<t text="Small Delay" translation="Small Delay"/>
-<t text="Sound Effects" translation="Sound Effects"/>
-<t text="Username" translation="Nickname"/>
-<t text="Medium Delay" translation="Medium Delay"/>
-<t text="Toggle Microphone" translation="Toggle Microphone"/>
-<t text="Video is Enabled" translation="Video is Enabled"/>
-<t text="Radio" translation="Radio"/>
-<t text="Talk" translation="Talk"/>
-<t text="Viewers" translation="Viewers"/>
-<t text="Toggle External Encoder" translation="Toggle External Encoder"/>
-<t text="Sound is Disabled" translation="Sound is Disabled"/>
-<t text="Sound Fx" translation="Sound Effects"/>
-<t text="Good" translation="Good"/>
-<t text="Toggle Webcam" translation="Toggle Webcam"/>
-<t text="Bandwidth" translation="Bandwidth"/>
-<t text="Underline" translation="Underline"/>
-<t text="Select Microphone Device" translation="Select Microphone Device"/>
-<t text="Italic" translation="Italic"/>
-<t text="Select Webcam Device" translation="Select Webcam Device"/>
-<t text="Big Delay" translation="Big Delay"/>
-<t text="Excellent" translation="Excellent"/>
-<t text="Apply Settings" translation="Apply Settings"/>
-<t text="Very High" translation="Very High"/>',
-
-				'customCSS' => <<<HTMLCODE
-<style type="text/css">
-
-.videowhisperChannel
-{
-position: relative;
-display:inline-block;
-
-	border:1px solid #aaa;
-	background-color:#777;
-	padding: 0px;
-	margin: 2px;
-
-	width: 240px;
-    height: 180px;
-}
-
-.videowhisperChannel:hover {
-	border:1px solid #fff;
-}
-
-.videowhisperChannel IMG
-{
-padding: 0px;
-margin: 0px;
-border: 0px;
-}
-
-.videowhisperTitle
-{
-position: absolute;
-top:5px;
-left:5px;
-font-size: 20px;
-color: #FFF;
-text-shadow:1px 1px 1px #333;
-}
-
-.videowhisperTime
-{
-position: absolute;
-bottom:8px;
-left:5px;
-font-size: 15px;
-color: #FFF;
-text-shadow:1px 1px 1px #333;
-}
+				}
 
 
-.videowhisperButton {
-	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
-	-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
-	box-shadow:inset 0px 1px 0px 0px #ffffff;
-	-webkit-border-top-left-radius:6px;
-	-moz-border-radius-topleft:6px;
-	border-top-left-radius:6px;
-	-webkit-border-top-right-radius:6px;
-	-moz-border-radius-topright:6px;
-	border-top-right-radius:6px;
-	-webkit-border-bottom-right-radius:6px;
-	-moz-border-radius-bottomright:6px;
-	border-bottom-right-radius:6px;
-	-webkit-border-bottom-left-radius:6px;
-	-moz-border-radius-bottomleft:6px;
-	border-bottom-left-radius:6px;
-	text-indent:0;
-	border:1px solid #dcdcdc;
-	display:inline-block;
-	color:#666666;
-	font-family:Verdana;
-	font-size:15px;
-	font-weight:bold;
-	font-style:normal;
-	height:50px;
-	line-height:50px;
-	width:200px;
-	text-decoration:none;
-	text-align:center;
-	text-shadow:1px 1px 0px #ffffff;
-	background-color:#e9e9e9;
+			}
 
-}
+		}
 
-.videowhisperButton:hover {
-	background-color:#f9f9f9;
-}
+		function duration_column_orderby( $vars ) {
+			if ( isset( $vars['orderby'] ) && 'edate' == $vars['orderby'] ) {
+				$vars = array_merge( $vars, array(
+						'meta_key' => 'edate',
+						'orderby' => 'meta_value_num'
+					) );
+			}
 
-.videowhisperButton:active {
-	position:relative;
-	top:1px;
-}
+			return $vars;
+		}
 
-td {
-    padding: 4px;
-}
 
-table, .videowhisperTable {
-    border-spacing: 4px;
-    border-collapse: separate;
-}
+		function channel_query_vars( $query_vars ){
+			// array of recognized query vars
+			$query_vars[] = 'broadcast';
+			$query_vars[] = 'video';
+			$query_vars[] = 'hls';
+			$query_vars[] = 'external';
+			return $query_vars;
+		}
 
-.videowhisperDropdown {
-    display:inline-block;
-    border: 1px solid #111;
-    overflow: hidden;
-    border-radius:3px;
-    color: #eee;
-    background: #556570;
-    width: 240px;
-}
-
-.videowhisperSelect {
-    width: 100%;
-    border: none;
-    box-shadow: none;
-    background: transparent;
-    background-image: none;
-    -webkit-appearance: none;
-}
-
-.videowhisperSelect:focus {
-    outline: none;
-}
-
-</style>
-
-HTMLCODE
-				,
-				'uploadsPath' => $upload_dir['basedir'] . '/vwls',
-
-				'tokenKey' => 'VideoWhisper',
-				'webKey' => 'VideoWhisper',
-
-				'serverRTMFP' => 'rtmfp://stratus.adobe.com/f1533cc06e4de4b56399b10d-1a624022ff71/',
-				'p2pGroup' => 'VideoWhisper',
-				'supportRTMP' => '1',
-				'supportP2P' => '0',
-				'alwaysRTMP' => '0',
-				'alwaysP2P' => '0',
-				'alwaysWatch' => '0',
-				'disableBandwidthDetection' => '1',
-				'videowhisper' => 0
-			);
+		// Register Custom Post Type
+		function channel_post() {
 
 			$options = get_option('VWliveStreamingOptions');
-			if (!empty($options)) {
-				foreach ($options as $key => $option)
-					$adminOptions[$key] = $option;
-			}
-			update_option('VWliveStreamingOptions', $adminOptions);
+			if (!$options['postChannels']) return;
 
-			return $adminOptions;
+			//only if missing
+			if (post_type_exists('channel')) return;
+
+			$labels = array(
+				'name'                => _x( 'Channels', 'Post Type General Name', 'text_domain' ),
+				'singular_name'       => _x( 'Channel', 'Post Type Singular Name', 'text_domain' ),
+				'menu_name'           => __( 'Channels', 'text_domain' ),
+				'parent_item_colon'   => __( 'Parent Channel:', 'text_domain' ),
+				'all_items'           => __( 'All Channels', 'text_domain' ),
+				'view_item'           => __( 'View Channel', 'text_domain' ),
+				'add_new_item'        => __( 'Add New Channel', 'text_domain' ),
+				'add_new'             => __( 'New Channel', 'text_domain' ),
+				'edit_item'           => __( 'Edit Channel', 'text_domain' ),
+				'update_item'         => __( 'Update Channel', 'text_domain' ),
+				'search_items'        => __( 'Search Channels', 'text_domain' ),
+				'not_found'           => __( 'No Channels found', 'text_domain' ),
+				'not_found_in_trash'  => __( 'No Channels found in Trash', 'text_domain' ),
+			);
+			$args = array(
+				'label'               => __( 'channel', 'text_domain' ),
+				'description'         => __( 'Video Channels', 'text_domain' ),
+				'labels'              => $labels,
+				'supports'            => array( 'title', 'editor', 'author', 'thumbnail', 'comments', 'custom-fields', 'page-attributes', ),
+				'taxonomies'          => array( 'category', 'post_tag' ),
+				'hierarchical'        => false,
+				'public'              => true,
+				'show_ui'             => true,
+				'show_in_menu'        => true,
+				'show_in_nav_menus'   => true,
+				'show_in_admin_bar'   => true,
+				'menu_position'       => 5,
+				'can_export'          => true,
+				'has_archive'         => true,
+				'exclude_from_search' => false,
+				'publicly_queryable'  => true,
+				'menu_icon' => 'dashicons-video-alt',
+				'capability_type'     => 'post',
+			);
+			register_post_type( 'channel', $args );
+
+			add_rewrite_endpoint( 'broadcast', EP_ALL );
+			add_rewrite_endpoint( 'video', EP_ALL );
+			add_rewrite_endpoint( 'hls', EP_ALL );
+			add_rewrite_endpoint( 'external', EP_ALL );
+
+			flush_rewrite_rules();
+
+		}
+
+
+		//! Admin
+
+
+		function admin_init()
+		{
+			add_meta_box(
+				'vwls-nav-menus',
+				'Channel Categories',
+				array('VWliveStreaming', 'nav_menus'),
+				'nav-menus',
+				'side',
+				'default');
+		}
+
+		function nav_menus()
+		{
+
+			//$object, $taxonomy
+
+			global $nav_menu_selected_id;
+			$taxonomy_name = 'category';
+
+			// Paginate browsing for large numbers of objects.
+			$per_page = 50;
+			$pagenum = isset( $_REQUEST[$taxonomy_name . '-tab'] ) && isset( $_REQUEST['paged'] ) ? absint( $_REQUEST['paged'] ) : 1;
+			$offset = 0 < $pagenum ? $per_page * ( $pagenum - 1 ) : 0;
+
+			$args = array(
+				'child_of' => 0,
+				'exclude' => '',
+				'hide_empty' => false,
+				'hierarchical' => 1,
+				'include' => '',
+				'number' => $per_page,
+				'offset' => $offset,
+				'order' => 'ASC',
+				'orderby' => 'name',
+				'pad_counts' => false,
+			);
+
+			$terms = get_terms( $taxonomy_name, $args );
+
+			if ( ! $terms || is_wp_error($terms) ) {
+				echo '<p>' . __( 'No items.' ) . '</p>';
+				return;
+			}
+
+			$num_pages = ceil( wp_count_terms( $taxonomy_name , array_merge( $args, array('number' => '', 'offset' => '') ) ) / $per_page );
+
+			$page_links = paginate_links( array(
+					'base' => add_query_arg(
+						array(
+							$taxonomy_name . '-tab' => 'all',
+							'paged' => '%#%',
+							'item-type' => 'taxonomy',
+							'item-object' => $taxonomy_name,
+						)
+					),
+					'format' => '',
+					'prev_text' => __('&laquo;'),
+					'next_text' => __('&raquo;'),
+					'total' => $num_pages,
+					'current' => $pagenum
+				));
+
+			$db_fields = false;
+			if ( is_taxonomy_hierarchical( $taxonomy_name ) ) {
+				$db_fields = array( 'parent' => 'parent', 'id' => 'term_id' );
+			}
+
+			$walker = new Walker_Nav_Menu_Checklist( $db_fields );
+
+			$current_tab = 'most-used';
+			if ( isset( $_REQUEST[$taxonomy_name . '-tab'] ) && in_array( $_REQUEST[$taxonomy_name . '-tab'], array('all', 'most-used', 'search') ) ) {
+				$current_tab = $_REQUEST[$taxonomy_name . '-tab'];
+			}
+
+			if ( ! empty( $_REQUEST['quick-search-taxonomy-' . $taxonomy_name] ) ) {
+				$current_tab = 'search';
+			}
+
+			$removed_args = array(
+				'action',
+				'customlink-tab',
+				'edit-menu-item',
+				'menu-item',
+				'page-tab',
+				'_wpnonce',
+			);
+
+?>
+	<div id="taxonomy-<?php echo $taxonomy_name; ?>" class="taxonomydiv">
+		<ul id="taxonomy-<?php echo $taxonomy_name; ?>-tabs" class="taxonomy-tabs add-menu-item-tabs">
+			<li <?php echo ( 'most-used' == $current_tab ? ' class="tabs"' : '' ); ?>>
+				<a class="nav-tab-link" data-type="tabs-panel-<?php echo esc_attr( $taxonomy_name ); ?>-pop" href="<?php if ( $nav_menu_selected_id ) echo esc_url(add_query_arg($taxonomy_name . '-tab', 'most-used', remove_query_arg($removed_args))); ?>#tabs-panel-<?php echo $taxonomy_name; ?>-pop">
+					<?php _e( 'Most Used' ); ?>
+				</a>
+			</li>
+			<li <?php echo ( 'all' == $current_tab ? ' class="tabs"' : '' ); ?>>
+				<a class="nav-tab-link" data-type="tabs-panel-<?php echo esc_attr( $taxonomy_name ); ?>-all" href="<?php if ( $nav_menu_selected_id ) echo esc_url(add_query_arg($taxonomy_name . '-tab', 'all', remove_query_arg($removed_args))); ?>#tabs-panel-<?php echo $taxonomy_name; ?>-all">
+					<?php _e( 'View All' ); ?>
+				</a>
+			</li>
+			<li <?php echo ( 'search' == $current_tab ? ' class="tabs"' : '' ); ?>>
+				<a class="nav-tab-link" data-type="tabs-panel-search-taxonomy-<?php echo esc_attr( $taxonomy_name ); ?>" href="<?php if ( $nav_menu_selected_id ) echo esc_url(add_query_arg($taxonomy_name . '-tab', 'search', remove_query_arg($removed_args))); ?>#tabs-panel-search-taxonomy-<?php echo $taxonomy_name; ?>">
+					<?php _e( 'Search' ); ?>
+				</a>
+			</li>
+		</ul><!-- .taxonomy-tabs -->
+
+		<div id="tabs-panel-<?php echo $taxonomy_name; ?>-pop" class="tabs-panel <?php
+			echo ( 'most-used' == $current_tab ? 'tabs-panel-active' : 'tabs-panel-inactive' );
+			?>">
+			<ul id="<?php echo $taxonomy_name; ?>checklist-pop" class="categorychecklist form-no-clear" >
+				<?php
+			$popular_terms = get_terms( $taxonomy_name, array( 'orderby' => 'count', 'order' => 'DESC', 'number' => 10, 'hierarchical' => false ) );
+			$args['walker'] = $walker;
+			echo walk_nav_menu_tree( array_map(array('VWliveStreaming', 'nav_menu_item'), $popular_terms), 0, (object) $args );
+?>
+			</ul>
+		</div><!-- /.tabs-panel -->
+
+		<div id="tabs-panel-<?php echo $taxonomy_name; ?>-all" class="tabs-panel tabs-panel-view-all <?php
+			echo ( 'all' == $current_tab ? 'tabs-panel-active' : 'tabs-panel-inactive' );
+			?>">
+			<?php if ( ! empty( $page_links ) ) : ?>
+				<div class="add-menu-item-pagelinks">
+					<?php echo $page_links; ?>
+				</div>
+			<?php endif; ?>
+			<ul id="<?php echo $taxonomy_name; ?>checklist" data-wp-lists="list:<?php echo $taxonomy_name?>" class="categorychecklist form-no-clear">
+				<?php
+			$args['walker'] = $walker;
+			echo walk_nav_menu_tree( array_map(array('VWliveStreaming', 'nav_menu_item'), $terms), 0, (object) $args );
+?>
+			</ul>
+			<?php if ( ! empty( $page_links ) ) : ?>
+				<div class="add-menu-item-pagelinks">
+					<?php echo $page_links; ?>
+				</div>
+			<?php endif; ?>
+		</div><!-- /.tabs-panel -->
+
+		<div class="tabs-panel <?php
+			echo ( 'search' == $current_tab ? 'tabs-panel-active' : 'tabs-panel-inactive' );
+			?>" id="tabs-panel-search-taxonomy-<?php echo $taxonomy_name; ?>">
+			<?php
+			if ( isset( $_REQUEST['quick-search-taxonomy-' . $taxonomy_name] ) ) {
+				$searched = esc_attr( $_REQUEST['quick-search-taxonomy-' . $taxonomy_name] );
+				$search_results = get_terms( $taxonomy_name, array( 'name__like' => $searched, 'fields' => 'all', 'orderby' => 'count', 'order' => 'DESC', 'hierarchical' => false ) );
+			} else {
+				$searched = '';
+				$search_results = array();
+			}
+?>
+			<p class="quick-search-wrap">
+				<input type="search" class="quick-search input-with-default-title" title="<?php esc_attr_e('Search'); ?>" value="<?php echo $searched; ?>" name="quick-search-taxonomy-<?php echo $taxonomy_name; ?>" />
+				<span class="spinner"></span>
+				<?php submit_button( __( 'Search' ), 'button-small quick-search-submit button-secondary hide-if-js', 'submit', false, array( 'id' => 'submit-quick-search-taxonomy-' . $taxonomy_name ) ); ?>
+			</p>
+
+			<ul id="<?php echo $taxonomy_name; ?>-search-checklist" data-wp-lists="list:<?php echo $taxonomy_name?>" class="categorychecklist form-no-clear">
+			<?php if ( ! empty( $search_results ) && ! is_wp_error( $search_results ) ) : ?>
+				<?php
+				$args['walker'] = $walker;
+			echo walk_nav_menu_tree( array_map(array('VWliveStreaming', 'nav_menu_item'), $search_results), 0, (object) $args );
+?>
+			<?php elseif ( is_wp_error( $search_results ) ) : ?>
+				<li><?php echo $search_results->get_error_message(); ?></li>
+			<?php elseif ( ! empty( $searched ) ) : ?>
+				<li><?php _e('No results found.'); ?></li>
+			<?php endif; ?>
+			</ul>
+		</div><!-- /.tabs-panel -->
+
+		<p class="button-controls">
+			<span class="list-controls">
+				<a href="<?php
+			echo esc_url(add_query_arg(
+					array(
+						$taxonomy_name . '-tab' => 'all',
+						'selectall' => 1,
+					),
+					remove_query_arg($removed_args)
+				));
+			?>#taxonomy-<?php echo $taxonomy_name; ?>" class="select-all"><?php _e('Select All'); ?></a>
+			</span>
+
+			<span class="add-to-menu">
+				<input type="submit"<?php wp_nav_menu_disabled_check( $nav_menu_selected_id ); ?> class="button-secondary submit-add-to-menu right" value="<?php esc_attr_e( 'Add to Menu' ); ?>" name="add-taxonomy-menu-item" id="<?php echo esc_attr( 'submit-taxonomy-' . $taxonomy_name ); ?>" />
+				<span class="spinner"></span>
+			</span>
+		</p>
+
+	</div><!-- /.taxonomydiv -->
+	        <?php
+		}
+
+
+		function single_template($single_template)
+		{
+
+			if (!is_single())  return $single_template;
+
+			$options = get_option('VWliveStreamingOptions');
+			$postID = get_the_ID();
+			if (! get_post_type( $postID ) == $options['custom_post']) return $single_template;
+
+
+			$single_template = get_template_directory() . '/' . $options['postTemplate'];
+
+			return $single_template;
+		}
+
+		function nav_menu_item( $menu_item )
+		{
+
+			$menu_item->ID = $menu_item->term_id;
+			$menu_item->db_id = 0;
+			$menu_item->menu_item_parent = 0;
+			$menu_item->object_id = (int) $menu_item->term_id;
+			$menu_item->post_parent = (int) $menu_item->parent;
+			$menu_item->type = 'custom';
+
+			$object = get_taxonomy( $menu_item->taxonomy );
+			$menu_item->object = $object->name;
+			$menu_item->type_label = $object->labels->singular_name;
+
+			$menu_item->title = $menu_item->name;
+
+			$options = get_option('VWliveStreamingOptions');
+			if ($options['disablePageC']=='0')
+			{
+				$page_id = get_option("vwls_page_channels");
+				$permalink = get_permalink( $page_id);
+				$menu_item->url = add_query_arg(array('cid' => $menu_item->object_id, 'category' => $menu_item->name), $permalink);
+			} else $menu_item->url = get_term_link( $menu_item, $menu_item->taxonomy ) . '?channels=1' ;
+
+			$menu_item->target = '';
+			$menu_item->attr_title = '';
+			$menu_item->description = get_term_field( 'description', $menu_item->term_id, $menu_item->taxonomy );
+			$menu_item->classes = array();
+			$menu_item->xfn = '';
+
+			/**
+			 * @param object $menu_item The menu item object.
+			 */
+			return $menu_item;
 		}
 
 
@@ -2849,6 +2679,17 @@ align="absmiddle" border="0">Start Broadcasting</a>
 		function adminDocs()
 		{
 ?>
+<h2>VideoWhisper Live Streaming</h2>
+
+<h3>Quick Setup Tutorial</h3>
+<ol>
+<li>Install and activate the VideoWhisper Live Streaming Integration plugin </li>
+<li>From <a href="admin.php?page=live-streaming">Live Streaming > Settings</a> in WP backend and configure settings (it's compulsory to fill a valid RTMP hosting address)</li>
+<li>From <a href="nav-menus.php">Appearance > Menus</a> add Channels and Broadcast Live pages to main site menu</li>
+<li>From <a href="options-permalink.php">Settings > Permalinks</a> enable a SEO friendly structure (ex. Post name)</li>
+<li>Install and enable a <a href="admin.php?page=live-streaming&tab=billing">billing plugin</a> to allow owners to sell channel access</li>
+<li>Install and enable the <a href="http://videosharevod.com/">VideoShareVOD</a> plugin to enable video broadcast archiving, video publishing, management</li>
+</ol>
 
 <h3>ShortCodes</h3>
 <ul>
@@ -2884,27 +2725,346 @@ align="absmiddle" border="0">Start Broadcasting</a>
   <?php
 		}
 
-		function channelFeatures()
+
+		//! Channel Features List
+
+		function roomFeatures()
 		{
 			return array(
+
+				'accessList' => array(
+					'name'=>'Access List',
+					'description' =>'Can specify list of user logins, roles, emails that can access the channel.',
+					'installed' => 1),
+				'accessPrice' => array(
+					'name'=>'Access Price',
+					'description' =>'Can setup a price per channel. Requires myCRED plugin installed and integration enabled from Billing.',
+					'type' => 'number',
+					'installed' => 1),
 				'privateList' => array(
 					'name'=>'Private Channels',
 					'description' =>'Hide channels from public listings. Can be accessed by channel links.',
-					'active' => 0),
+					'installed' => 0),
 				'privateChat' => array(
 					'name'=>'Private Chat',
 					'description' =>'Disable chat from site watch interface.',
-					'active' => 0),
+					'installed' => 0),
 				'privateVideos' => array(
 					'name'=>'Private Videos',
 					'description' =>'Channel videos do not show in public listings. Only show on channel page.',
-					'active' => 0),
+					'installed' => 0),
 				'hiddenVideos' => array(
 					'name'=>'Hidden Videos',
 					'description' =>'Channel videos do not show in public or channel listings. Only owner can browse.',
-					'active' => 0),
+					'installed' => 0),
 			);
 		}
+
+		//! Settings
+
+
+		function setupOptions() {
+
+			$root_url = get_bloginfo( "url" ) . "/";
+			$upload_dir = wp_upload_dir();
+
+			$adminOptions = array(
+				'userName' => 'user_nicename',
+				'postChannels' => '1',
+				'userChannels' => '1',
+				'anyChannels' => '0',
+				'custom_post' => 'channel',
+				'postTemplate' => 'page.php',
+
+				'disablePage' => '0',
+				'disablePageC' => '0',
+				'thumbWidth' => '240',
+				'thumbHeight' => '180',
+				'perPage' =>'6',
+
+				'postName' => 'custom',
+
+				'rtmp_server' => 'rtmp://localhost/videowhisper',
+				'rtmp_amf' => 'AMF3',
+				'httpstreamer' => 'http://localhost:1935/videowhisper-x/',
+				'ffmpegPath' => '/usr/local/bin/ffmpeg',
+				'ffmpegTranscode' => '-analyzeduration 0 -vcodec copy -acodec libfaac -ac 2 -ar 22050 -ab 96k',
+
+				'canBroadcast' => 'members',
+				'broadcastList' => 'Super Admin, Administrator, Editor, Author',
+				'maxChannels' => '2',
+				'externalKeys' => '1',
+				'externalKeysTranscoder' => '1',
+				'rtmpStatus' => '0',
+
+
+				'canWatch' => 'all',
+				'watchList' => 'Super Admin, Administrator, Editor, Author, Contributor, Subscriber',
+				'onlyVideo' => '0',
+				'noEmbeds' => '0',
+
+				'premiumList' => 'Super Admin, Administrator, Editor, Author',
+				'canWatchPremium' => 'all',
+				'watchListPremium' => 'Super Admin, Administrator, Editor, Author, Contributor, Subscriber',
+				'pLogo' => '1',
+				'broadcastTime' => '0',
+				'watchTime' => '0',
+				'pBroadcastTime' => '0',
+				'pWatchTime' => '0',
+				'timeReset' => '30',
+				'bannedNames' => 'bann1, bann2',
+
+				'camResolution' => '480x360',
+				'camFPS' => '15',
+
+				'camBandwidth' => '40960',
+				'camMaxBandwidth' => '81920',
+				'pCamBandwidth' => '65536',
+				'pCamMaxBandwidth' => '163840',
+				'transcoding' => '1',
+
+				'videoCodec'=>'H264',
+				'codecProfile' => 'baseline',
+				'codecLevel' => '3.1',
+
+				'soundCodec'=> 'Speex',
+				'soundQuality' => '9',
+				'micRate' => '22',
+
+				'onlineExpiration0' =>'310',
+				'onlineExpiration1' =>'40',
+				'parameters' => '&bufferLive=1&bufferFull=1&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&disableVideo=0&disableChat=0&disableUsers=0&fillWindow=0&adsTimeout=15000&externalInterval=360000&statusInterval=300000',
+				'parametersBroadcaster' => '&bufferLive=2&bufferFull=2&showCamSettings=1&advancedCamSettings=1&configureSource=1&generateSnapshots=1&snapshotsTime=60000&room_limit=500&showTimer=1&showCredit=1&disconnectOnTimeout=1&externalInterval=360000&statusInterval=30000',
+
+				'overLogo' => $root_url .'wp-content/plugins/videowhisper-live-streaming-integration/ls/logo.png',
+				'overLink' => 'http://www.videowhisper.com',
+				'adServer' => 'ads',
+				'adsInterval' => '20000',
+				'adsCode' => '<B>Sample Ad</B><BR>Edit ads from plugin settings. Also edit  Ads Interval in milliseconds (0 to disable ad calls).  Also see <a href="http://www.adinchat.com" target="_blank"><U><B>AD in Chat</B></U></a> compatible ad management server for setting up ad rotation. Ads do not show on premium channels.',
+
+				'translationCode' => '<t text="Video is Disabled" translation="Video is Disabled"/>
+<t text="Bold" translation="Bold"/>
+<t text="Sound is Enabled" translation="Sound is Enabled"/>
+<t text="Publish a video stream using the settings below without any spaces." translation="Publish a video stream using the settings below without any spaces."/>
+<t text="Click Preview for Streaming Settings" translation="Click Preview for Streaming Settings"/>
+<t text="DVD NTSC" translation="DVD NTSC"/>
+<t text="DVD PAL" translation="DVD PAL"/>
+<t text="Video Source" translation="Video Source"/>
+<t text="Send" translation="Send"/>
+<t text="Cinema" translation="Cinema"/>
+<t text="Update Show Title" translation="Update Show Title"/>
+<t text="Public Channel: Click to Copy" translation="Public Channel: Click to Copy"/>
+<t text="Channel Link" translation="Channel Link"/>
+<t text="Kick" translation="Kick"/>
+<t text="Embed Channel HTML Code" translation="Embed Channel HTML Code"/>
+<t text="Open In Browser" translation="Open In Browser"/>
+<t text="Embed Video HTML Code" translation="Embed Video HTML Code"/>
+<t text="Snapshot Image Link" translation="Snapshot Image Link"/>
+<t text="SD" translation="SD"/>
+<t text="External Encoder" translation="External Encoder"/>
+<t text="Source" translation="Source"/>
+<t text="Very Low" translation="Very Low"/>
+<t text="Low" translation="Low"/>
+<t text="HDTV" translation="HDTV"/>
+<t text="Webcam" translation="Webcam"/>
+<t text="Resolution" translation="Resolution"/>
+<t text="Emoticons" translation="Emoticons"/>
+<t text="HDCAM" translation="HDCAM"/>
+<t text="FullHD" translation="FullHD"/>
+<t text="Preview Shows as Compressed" translation="Preview Shows as Compressed"/>
+<t text="Rate" translation="Rate"/>
+<t text="Very Good" translation="Very Good"/>
+<t text="Preview Shows as Captured" translation="Preview Shows as Captured"/>
+<t text="Framerate" translation="Framerate"/>
+<t text="High" translation="High"/>
+<t text="Toggle Preview Compression" translation="Toggle Preview Compression"/>
+<t text="Latency" translation="Latency"/>
+<t text="CD" translation="CD"/>
+<t text="Your connection performance:" translation="Your connection performance:"/>
+<t text="Small Delay" translation="Small Delay"/>
+<t text="Sound Effects" translation="Sound Effects"/>
+<t text="Username" translation="Nickname"/>
+<t text="Medium Delay" translation="Medium Delay"/>
+<t text="Toggle Microphone" translation="Toggle Microphone"/>
+<t text="Video is Enabled" translation="Video is Enabled"/>
+<t text="Radio" translation="Radio"/>
+<t text="Talk" translation="Talk"/>
+<t text="Viewers" translation="Viewers"/>
+<t text="Toggle External Encoder" translation="Toggle External Encoder"/>
+<t text="Sound is Disabled" translation="Sound is Disabled"/>
+<t text="Sound Fx" translation="Sound Effects"/>
+<t text="Good" translation="Good"/>
+<t text="Toggle Webcam" translation="Toggle Webcam"/>
+<t text="Bandwidth" translation="Bandwidth"/>
+<t text="Underline" translation="Underline"/>
+<t text="Select Microphone Device" translation="Select Microphone Device"/>
+<t text="Italic" translation="Italic"/>
+<t text="Select Webcam Device" translation="Select Webcam Device"/>
+<t text="Big Delay" translation="Big Delay"/>
+<t text="Excellent" translation="Excellent"/>
+<t text="Apply Settings" translation="Apply Settings"/>
+<t text="Very High" translation="Very High"/>',
+
+				'customCSS' => <<<HTMLCODE
+<style type="text/css">
+
+.videowhisperChannel
+{
+position: relative;
+display:inline-block;
+
+	border:1px solid #aaa;
+	background-color:#777;
+	padding: 0px;
+	margin: 2px;
+
+	width: 240px;
+    height: 180px;
+}
+
+.videowhisperChannel:hover {
+	border:1px solid #fff;
+}
+
+.videowhisperChannel IMG
+{
+padding: 0px;
+margin: 0px;
+border: 0px;
+}
+
+.videowhisperTitle
+{
+position: absolute;
+top:5px;
+left:5px;
+font-size: 20px;
+color: #FFF;
+text-shadow:1px 1px 1px #333;
+}
+
+.videowhisperTime
+{
+position: absolute;
+bottom:8px;
+left:5px;
+font-size: 15px;
+color: #FFF;
+text-shadow:1px 1px 1px #333;
+}
+
+
+.videowhisperButton {
+	-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
+	-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
+	box-shadow:inset 0px 1px 0px 0px #ffffff;
+	-webkit-border-top-left-radius:6px;
+	-moz-border-radius-topleft:6px;
+	border-top-left-radius:6px;
+	-webkit-border-top-right-radius:6px;
+	-moz-border-radius-topright:6px;
+	border-top-right-radius:6px;
+	-webkit-border-bottom-right-radius:6px;
+	-moz-border-radius-bottomright:6px;
+	border-bottom-right-radius:6px;
+	-webkit-border-bottom-left-radius:6px;
+	-moz-border-radius-bottomleft:6px;
+	border-bottom-left-radius:6px;
+	text-indent:0;
+	border:1px solid #dcdcdc;
+	display:inline-block;
+	color:#666666;
+	font-family:Verdana;
+	font-size:15px;
+	font-weight:bold;
+	font-style:normal;
+	height:50px;
+	line-height:50px;
+	width:200px;
+	text-decoration:none;
+	text-align:center;
+	text-shadow:1px 1px 0px #ffffff;
+	background-color:#e9e9e9;
+
+}
+
+.videowhisperButton:hover {
+	background-color:#f9f9f9;
+}
+
+.videowhisperButton:active {
+	position:relative;
+	top:1px;
+}
+
+td {
+    padding: 4px;
+}
+
+table, .videowhisperTable {
+    border-spacing: 4px;
+    border-collapse: separate;
+}
+
+.videowhisperDropdown {
+    display:inline-block;
+    border: 1px solid #111;
+    overflow: hidden;
+    border-radius:3px;
+    color: #eee;
+    background: #556570;
+    width: 240px;
+}
+
+.videowhisperSelect {
+    width: 100%;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    background-image: none;
+    -webkit-appearance: none;
+}
+
+.videowhisperSelect:focus {
+    outline: none;
+}
+
+</style>
+
+HTMLCODE
+				,
+				'uploadsPath' => $upload_dir['basedir'] . '/vwls',
+
+				'tokenKey' => 'VideoWhisper',
+				'webKey' => 'VideoWhisper',
+
+				'serverRTMFP' => 'rtmfp://stratus.adobe.com/f1533cc06e4de4b56399b10d-1a624022ff71/',
+				'p2pGroup' => 'VideoWhisper',
+				'supportRTMP' => '1',
+				'supportP2P' => '0',
+				'alwaysRTMP' => '0',
+				'alwaysP2P' => '0',
+				'alwaysWatch' => '0',
+				'disableBandwidthDetection' => '1',
+				'mycred' => '1',
+				'videowhisper' => 0
+			);
+
+			$features = VWliveStreaming::roomFeatures();
+			foreach ($features as $key=>$feature) if ($feature['installed'])  $adminOptions[$key] = 'All';
+
+				$options = get_option('VWliveStreamingOptions');
+			if (!empty($options)) {
+				foreach ($options as $key => $option)
+					$adminOptions[$key] = $option;
+			}
+			update_option('VWliveStreamingOptions', $adminOptions);
+
+
+			return $adminOptions;
+		}
+
+
 
 		function options()
 		{
@@ -2937,7 +3097,10 @@ align="absmiddle" border="0">Start Broadcasting</a>
 	<a href="admin.php?page=live-streaming&tab=general" class="nav-tab <?php echo $active_tab=='general'?'nav-tab-active':'';?>">Integration</a>
     <a href="admin.php?page=live-streaming&tab=broadcaster" class="nav-tab <?php echo $active_tab=='broadcaster'?'nav-tab-active':'';?>">Broadcast</a>
     <a href="admin.php?page=live-streaming&tab=premium" class="nav-tab <?php echo $active_tab=='premium'?'nav-tab-active':'';?>">Premium</a>
+    <a href="admin.php?page=live-streaming&tab=features" class="nav-tab <?php echo $active_tab=='features'?'nav-tab-active':'';?>">Features</a>
     <a href="admin.php?page=live-streaming&tab=watcher" class="nav-tab <?php echo $active_tab=='watcher'?'nav-tab-active':'';?>">Watch</a>
+    <a href="admin.php?page=live-streaming&tab=billing" class="nav-tab <?php echo $active_tab=='billing'?'nav-tab-active':'';?>">Billing</a>
+
 </h2>
 
 <form method="post" action="<?php echo $_SERVER["REQUEST_URI"]; ?>">
@@ -3425,8 +3588,29 @@ Options for premium channels. Premium channels have special settings and feature
 
 <h4>Maximum Video Stream Bandwidth (at runtime)</h4>
 <input name="pCamMaxBandwidth" type="text" id="pCamMaxBandwidth" size="7" maxlength="7" value="<?php echo $options['pCamMaxBandwidth']?>"/> (bytes/s)
-
 <?php
+				break;
+			case 'features':
+
+				//! Channel Features
+?>
+<h3>Channel Features</h3>
+Enable channel features, by owner.
+<br>Specify comma separated list of user roles, emails, logins able to setup these features for their channels.
+<br>Use All to enable for everybody (default) and None or blank to disable.
+<?php
+
+				$features = VWliveStreaming::roomFeatures();
+
+				foreach ($features as $key=>$feature) if ($feature['installed'])
+					{
+						echo '<h3>' . $feature['name'] . '</h3>';
+						echo '<textarea name="'.$key.'" cols="64" rows="2" id="'.$key.'">'.$options[$key].'
+</textarea>';
+						echo '<br>' . $feature['description'];
+					}
+
+
 				break;
 			case 'watcher':
 				$options['parameters'] = htmlentities(stripslashes($options['parameters']));
@@ -3454,21 +3638,40 @@ Settings for video subscribers that watch the live channels using watch or plain
 <input name="onlineExpiration0" type="text" id="onlineExpiration0" size="5" maxlength="6" value="<?php echo $options['onlineExpiration0']?>"/>s
 <br>Should be 10s higher than maximum statusInterval (ms) configured in parameters. A higher statusInterval decreases web server load caused by status updates.
 <?php
-
 				break;
-			case 'stats':
+
+			case 'billing':
+?>
+<h3>Billing Settings</h3>
+
+<h4>Enable myCRED Integration</h4>
+<select name="mycred" id="mycred">
+  <option value="0" <?php echo $options['mycred']?"":"selected"?>>No</option>
+  <option value="1" <?php echo $options['mycred']?"selected":""?>>Yes</option>
+</select>
+<br>Enables interface for channel owners to setup a price and sell access to channels (as configured in Features section). Requires myCRED plugin (see below).
+
+
+
+<h4>myCRED</h4>
+<?php
+				if (is_plugin_active('mycred/mycred.php')) echo 'Detected'; else echo 'Not detected. Please install and activate <a target="_mycred" href="https://wordpress.org/plugins/mycred/">myCRED</a>!';
+
+				if (function_exists( 'mycred_get_users_cred')) echo '<br>Testing balance: You have ' . mycred_get_users_cred() . ' points.';
 ?>
 
+<p><a target="_mycred" href="https://wordpress.org/plugins/mycred/">myCRED</a> is an adaptive points management system that lets you award / charge your users for interacting with your WordPress powered website. The Buy Content add-on allows you to sell any publicly available post types, including video presentation posts created by this plugin. You can select to either charge users to view the content or pay the post's author either the whole sum or a percentage.<p>
+<h4>myCRED buyCRED Module</h4>
+ <?php
+				if (class_exists( 'myCRED_buyCRED_Module' ) ) echo 'Detected'; else echo 'Not detected. Please install and activate myCRED with <a href="admin.php?page=myCRED_page_addons">buyCRED addon</a>!';
+?>
+<p>
+myCRED <a href="admin.php?page=myCRED_page_addons">buyCRED addon</a> should be enabled and at least 1 <a href="admin.php?page=myCRED_page_gateways"> payment gateway</a> configured for users to be able to buy credits. Setup a page for users to buy credits with shortcode [mycred_buy_form]. </p>
+
 <?php
-
 				break;
 
-			case 'shortcodes';
 
-				break;
-			case 'live':
-
-				break;
 			}
 
 			if (!in_array($active_tab, array('live','stats', 'shortcodes')) ) submit_button(); ?>
@@ -3478,6 +3681,8 @@ Settings for video subscribers that watch the live channels using watch or plain
 	 <?php
 		}
 
+
+		//! App Calls / integration
 
 
 		//this generates a session file record for rtmp login check
@@ -3646,13 +3851,6 @@ Settings for video subscribers that watch the live channels using watch or plain
 
 		}
 
-		function containsAny($name, $list)
-		{
-			$items = explode(',', $list);
-			foreach ($items as $item) if (stristr($name, trim($item))) return $item;
-
-				return 0;
-		}
 
 		//calls
 		function vwls_calls()
@@ -3676,20 +3874,6 @@ Settings for video subscribers that watch the live channels using watch or plain
 					foreach ($forbidden as $search)  $var=str_replace($search,"",$var);
 					$var=mysql_real_escape_string($var);
 				}
-			}
-
-			//if any key matches any listing
-			function inList($keys, $data)
-			{
-				if (!$keys) return 0;
-
-				$list=explode(",", strtolower(trim($data)));
-
-				foreach ($keys as $key)
-					foreach ($list as $listing)
-						if ( strtolower(trim($key)) == trim($listing) ) return 1;
-
-						return 0;
 			}
 
 			global $wpdb;
@@ -3867,7 +4051,7 @@ Settings for video subscribers that watch the live channels using watch or plain
 						break;
 
 					case "list";
-						if (inList($username, $broadcastList)) $loggedin=1;
+						if (VWliveStreaming::inList($username, $broadcastList)) $loggedin=1;
 						else $msg .= urlencode("$username, you are not in the broadcasters list.");
 						break;
 					}
@@ -4046,7 +4230,7 @@ Settings for video subscribers that watch the live channels using watch or plain
 						break;
 					case "list";
 						if ($username)
-							if (inList($userkeys, $watchList)) $loggedin=1;
+							if (VWliveStreaming::inList($userkeys, $watchList)) $loggedin=1;
 							else $msg=urlencode("<a href=\"/\">$username, you are not in the allowed watchers list.</a>") . $msgp;
 							else $msg=urlencode("<a href=\"/\">Please login first or register an account if you don't have one! Click here to return to website.</a>") . $msgp;
 							break;
@@ -4161,7 +4345,7 @@ Settings for video subscribers that watch the live channels using watch or plain
 						break;
 					case "list";
 						if ($username)
-							if (inList($userkeys, $watchList)) $loggedin=1;
+							if (VWliveStreaming::inList($userkeys, $watchList)) $loggedin=1;
 							else $msg=urlencode("<a href=\"/\">$username, you are not in the allowed watchers list.</a>") . $msgp;
 							else $msg=urlencode("<a href=\"/\">Please login first or register an account if you don't have one! Click here to return to website.</a>") . $msgp;
 							break;
@@ -4251,7 +4435,7 @@ layoutEND;
 					break;
 				case "list";
 					if ($username)
-						if (inList($userkeys, $broadcastList)) $loggedin=1;
+						if (VWliveStreaming::inList($userkeys, $broadcastList)) $loggedin=1;
 						else $msg=urlencode("<a href=\"/\">$username, you are not in the broadcasters list.</a>");
 						else $msg=urlencode("<a href=\"/\">Please login first or register an account if you don't have one! Click here to return to website.</a>");
 						break;
@@ -4294,7 +4478,7 @@ layoutEND;
 					$ztime=time();
 
 					//setup/update channel, premium & time reset
-					if (inList($userkeys, $options['premiumList'])) //premium room
+					if (VWliveStreaming::inList($userkeys, $options['premiumList'])) //premium room
 						{
 						$rtype=2;
 						$camBandwidth=$options['pCamBandwidth'];

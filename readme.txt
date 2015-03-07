@@ -5,7 +5,7 @@ Author URI: http://www.videowhisper.com
 Plugin Name: VideoWhisper Live Streaming Broadcast
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Donate link: http://www.videowhisper.com/?p=Invest
-Tags: video, live, streaming, BuddyPress, broadcast, broadcasting, stream, tv, chat, widget, plugin, media, livestream, channel, sidebar, webcam, cam, group, twitch, hitbox, justin, ustream, stickam, iOS, wirecast, iPhone, iPad, script, clone, alternative, turnkey
+Tags: video, live, BuddyPress, broadcast, stream, tv, chat, widget, plugin, media, livestream, channel, sidebar, webcam, cam, group, twitch, hitbox, justin, ustream, stickam, iOS, wirecast, iPhone, iPad, script, clone, alternative, turnkey
 Requires at least: 2.7
 Tested up to: 4.1
 Stable tag: trunk
@@ -30,6 +30,8 @@ VideoWhisper Live Streaming plugin allows site users and admins to broadcast liv
 * external broadcaster/player support with special RTMP side (Wirecast, Flash Media Live Encoder, Open Broadcaster Software, iOS GoCoder app)
 * generate snapshots for external streams with special RTMP side
 * video archive support with [Video Share VOD](http://wordpress.org/plugins/video-share-vod/  "Video Share / Video On Demand") WordPress Plugin
+* paid channel support with myCRED integration (owner sets price)
+* channel access list (owner sets list of user roles, logins, emails)
 
 For more details see the [WordPress Live Video Streaming](http://www.videowhisper.com/?p=WordPress+Live+Streaming "WordPress Live Video Streaming") Plugin Homepage ...
 
@@ -94,6 +96,10 @@ More information, the latest updates, other plugins and non-WordPress editions c
 
 == Changelog ==
 
+= 4.32.21 =
+* myCRED integration: allow selling access to channels
+* channel access list (owner can configure user logins, emails, roles that can access)
+ 
 = 4.32.8 =
 * Improved iOS HLS transcoding reliability (retry and verify automatically)
 
