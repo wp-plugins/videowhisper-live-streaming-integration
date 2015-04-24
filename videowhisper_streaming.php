@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.26
+Version: 4.32.27
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -3434,6 +3434,7 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 				}
 ?>
  </select>
+ <br>Higher resolution will require higher bandwidth to avoid visible blocking and quality loss. Webcam capture resolution should be same as video size in player/watch interface.
 
 <h4>Default Webcam Frames Per Second</h4>
 <select name="camFPS" id="camFPS">
@@ -3450,6 +3451,10 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 
 <h4>Video Stream Bandwidth</h4>
 <input name="camBandwidth" type="text" id="camBandwidth" size="7" maxlength="7" value="<?php echo $options['camBandwidth']?>"/> (bytes/s)
+<br>This sets size of video stream (without audio) and therefore the video quality.
+<br>Total stream size should be less than maximum broadcaster upload speed (multiply by 8 to get bps, ex. 50000b/s requires connection higher than 400kbps).
+<br>Do a speed test from broadcaster computer to a location near your streaming (rtmp) server using a tool like <a href="http://www.speedtest.net" target="_blank" >SpeedTest.net</a> . Drag and zoom to a server in contry/state where you host (Ex: central US if you host with VideoWhisper) and select it. The upload speed is the maximum data you'll be able to broadcast.
+
 <h4>Maximum Video Stream Bandwidth (at runtime)</h4>
 <input name="camMaxBandwidth" type="text" id="camMaxBandwidth" size="7" maxlength="7" value="<?php echo $options['camMaxBandwidth']?>"/> (bytes/s)
 
@@ -3487,6 +3492,7 @@ Settings for web based broadcasting interface. Do not apply for external apps.
   <option value="Speex" <?php echo $options['soundCodec']=='Speex'?"selected":""?>>Speex</option>
   <option value="Nellymoser" <?php echo $options['soundCodec']=='Nellymoser'?"selected":""?>>Nellymoser</option>
 </select>
+<BR>Speex is recommended for voice audio.
 <BR>Current web codecs used by Flash plugin are not currently supported by iOS. For delivery to iOS, audio should be transcoded to AAC (HE-AAC or AAC-LC up to 48 kHz, stereo audio).
 
 <h4>Speex Sound Quality</h4>
@@ -3500,6 +3506,8 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 				}
 ?>
  </select>
+ <br>Higher quality requires more <a href="http://www.videochat-scripts.com/speex-vs-nellymoser-bandwidth/" target="_blank" >bandwidth</a>.
+<br>Speex quality 9 requires 34.2kbps and generates 4275 b/s transfer. Quality 10 requires 42.2 kbps.
 
 <h4>Nellymoser Sound Rate</h4>
 <select name="micRate" id="micRate">
@@ -3512,6 +3520,9 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 				}
 ?>
  </select>
+<br>Higher quality requires more <a href="http://www.videochat-scripts.com/speex-vs-nellymoser-bandwidth/" target="_blank" >bandwidth</a>.
+<br>NellyMoser rate 22 requires 44.1kbps and generates  5512b/s transfer. Rate 44 requires 88.2 kbps.
+
 
 <h4>Disable Embed/Link Codes</h4>
 <select name="noEmbeds" id="noEmbeds">
