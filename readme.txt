@@ -7,7 +7,7 @@ Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Donate link: http://www.videowhisper.com/?p=Invest
 Tags: video, live, BuddyPress, broadcast, stream, tv, chat, widget, plugin, media, livestream, channel, sidebar, webcam, cam, group, twitch, hitbox, justin, ustream, stickam, iOS, wirecast, iPhone, iPad, script, clone, alternative, turnkey
 Requires at least: 2.7
-Tested up to: 4.1
+Tested up to: 4.2
 Stable tag: trunk
 
 The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages and other sites. 

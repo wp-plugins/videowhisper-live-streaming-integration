@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.22
+Version: 4.32.26
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -902,6 +902,9 @@ HTMLCODE;
 
 			if ($Android||$iOS) return do_shortcode("[videowhisper_hls channel=\"$stream\"]");
 
+			$options = get_option('VWliveStreamingOptions');
+			$watchStyle = html_entity_decode($options['watchStyle']);
+
 			$afterCode = <<<HTMLCODE
 <br style="clear:both" />
 
@@ -910,9 +913,7 @@ HTMLCODE;
 
 #videowhisper_container_$stream
 {
-width: 100%;
-height: 400px;
-border: solid 3px #999;
+$watchStyle
 }
 
 -->
@@ -2835,6 +2836,10 @@ align="absmiddle" border="0">Start Broadcasting</a>
 				'onlineExpiration1' =>'40',
 				'parameters' => '&bufferLive=1&bufferFull=1&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&disableVideo=0&disableChat=0&disableUsers=0&fillWindow=0&adsTimeout=15000&externalInterval=360000&statusInterval=300000',
 				'parametersBroadcaster' => '&bufferLive=2&bufferFull=2&showCamSettings=1&advancedCamSettings=1&configureSource=1&generateSnapshots=1&snapshotsTime=60000&room_limit=500&showTimer=1&showCredit=1&disconnectOnTimeout=1&externalInterval=360000&statusInterval=30000',
+				'layoutCode' => 'id=0&label=Video&x=10&y=45&width=325&height=298&resize=true&move=true; id=1&label=Chat&x=340&y=45&width=293&height=298&resize=true&move=true; id=2&label=Users&x=638&y=45&width=172&height=298&resize=true&move=true',
+				'watchStyle' => 'width: 100%;
+height: 400px;
+border: solid 3px #999;',
 
 				'overLogo' => $root_url .'wp-content/plugins/videowhisper-live-streaming-integration/ls/logo.png',
 				'overLink' => 'http://www.videowhisper.com',
@@ -3532,6 +3537,8 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 
 <?php
 				break;
+
+// ! Premium channels
 			case 'premium':
 ?>
 <h3>Premium Channels</h3>
@@ -3539,7 +3546,7 @@ Options for premium channels. Premium channels have special settings and feature
 <h4>Members that broadcast premium channels (Premium members: comma separated user names, roles, emails, IDs)</h4>
 <textarea name="premiumList" cols="64" rows="3" id="premiumList"><?php echo $options['premiumList']?>
 </textarea>
-
+Warning: Certain plugins may implement roles that have a different label than role name. Ex: s2member_level1
 
 <h4>Who can watch premium channels</h4>
 <select name="canWatchPremium" id="canWatchPremium">
@@ -3612,8 +3619,12 @@ Enable channel features, by owner.
 
 
 				break;
+
 			case 'watcher':
 				$options['parameters'] = htmlentities(stripslashes($options['parameters']));
+				$options['layoutCode'] = htmlentities(stripslashes($options['layoutCode']));
+				$options['watchStyle'] = htmlentities(stripslashes($options['watchStyle']));
+
 
 ?>
 <h3>Video Watcher</h3>
@@ -3625,11 +3636,11 @@ Settings for video subscribers that watch the live channels using watch or plain
   <option value="list" <?php echo $options['canWatch']=='list'?"selected":""?>>Members in List</option>
 </select>
 <h4>Members allowed to watch video (comma separated usernames, roles, IDs)</h4>
-<textarea name="watchList" cols="64" rows="3" id="watchList"><?php echo $options['watchList']?>
+<textarea name="watchList" cols="100" rows="3" id="watchList"><?php echo $options['watchList']?>
 </textarea>
 
 <h4>Parameters for Watch and Video Interfaces</h4>
-<textarea name="parameters" id="parameters" cols="64" rows="8"><?php echo $options['parameters']?></textarea>
+<textarea name="parameters" id="parameters" cols="100" rows="4"><?php echo $options['parameters']?></textarea>
 <br>For more details see <a href="http://www.videowhisper.com/?p=php+live+streaming#integrate">PHP Live Streaming documentation</a>.
 <br>Ex: &externalInterval=360000&statusInterval=30000
 
@@ -3637,6 +3648,14 @@ Settings for video subscribers that watch the live channels using watch or plain
 <p>How long to consider viewer online if no web status update occurs.</p>
 <input name="onlineExpiration0" type="text" id="onlineExpiration0" size="5" maxlength="6" value="<?php echo $options['onlineExpiration0']?>"/>s
 <br>Should be 10s higher than maximum statusInterval (ms) configured in parameters. A higher statusInterval decreases web server load caused by status updates.
+
+<h4>Custom Layout Code</h4>
+<textarea name="layoutCode" id="layoutCode" cols="100" rows="4"><?php echo $options['layoutCode']?></textarea>
+<br>Generate by writing and sending "/videowhisper layout" in chat (contains panel positions, sizes, move and resize toggles). Copy and paste code here.
+
+<h4>Container Style</h4>
+<textarea name="watchStyle" id="watchStyle" cols="100" rows="4"><?php echo $options['watchStyle']?></textarea>
+<br>Ex: width:100%; height:400px;
 <?php
 				break;
 
@@ -4368,13 +4387,10 @@ myCRED <a href="admin.php?page=myCRED_page_addons">buyCRED addon</a> should be e
 				$filterRegex=urlencode("(?i)(fuck|cunt)(?-i)");
 				$filterReplace=urlencode(" ** ");
 
-				//fill your layout code between <<<layoutEND and layoutEND;
-				$layoutCode=<<<layoutEND
-layoutEND;
-
 				if (!$welcome) $welcome="Welcome on <B>".$roomName."</B> live streaming channel!";
 
 				$parameters = html_entity_decode($options['parameters']);
+				$layoutCode = html_entity_decode($options['layoutCode']);
 
 				?>firstParameter=fix&server=<?php echo $rtmp_server?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&serverRTMFP=<?php echo urlencode($serverRTMFP)?>&p2pGroup=<?php echo
 				$p2pGroup?>&supportRTMP=<?php echo $supportRTMP?>&supportP2P=<?php echo $supportP2P?>&alwaysRTMP=<?php echo $alwaysRTMP?>&alwaysP2P=<?php echo $alwaysP2P?>&disableBandwidthDetection=<?php echo
