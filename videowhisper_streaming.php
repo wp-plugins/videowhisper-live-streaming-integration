@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.27
+Version: 4.32.28
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -1936,6 +1936,7 @@ Software</a>.</p></div>';
 
 			if (!is_single()) return $content;
 			$postID = get_the_ID() ;
+
 			if (get_post_type( $postID ) != 'channel') return $content;
 
 			$stream = sanitize_file_name(get_the_title($postID));
@@ -2364,8 +2365,11 @@ Software</a>.</p></div>';
 			if (!is_single())  return $single_template;
 
 			$options = get_option('VWliveStreamingOptions');
+			//if (!$options['custom_post']) $options['custom_post'] = 'channel';
+
 			$postID = get_the_ID();
-			if (! get_post_type( $postID ) == $options['custom_post']) return $single_template;
+
+			if ( get_post_type( $postID ) != $options['custom_post']) return $single_template;
 
 
 			$single_template = get_template_directory() . '/' . $options['postTemplate'];
