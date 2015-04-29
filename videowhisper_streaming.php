@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.28
+Version: 4.32.29
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -3686,8 +3686,10 @@ Settings for video subscribers that watch the live channels using watch or plain
 <br>Enables interface for channel owners to setup a price and sell access to channels (as configured in Features section). Requires myCRED plugin (see below).
 
 
+<h3>Setup and Configure myCRED</h3>
+Follow steps below to make sure myCRED is setup and configured to manage channel access sales.
 
-<h4>myCRED</h4>
+<h4>1) myCRED</h4>
 <?php
 				if (is_plugin_active('mycred/mycred.php')) echo 'Detected'; else echo 'Not detected. Please install and activate <a target="_mycred" href="https://wordpress.org/plugins/mycred/">myCRED</a>!';
 
@@ -3695,13 +3697,18 @@ Settings for video subscribers that watch the live channels using watch or plain
 ?>
 
 <p><a target="_mycred" href="https://wordpress.org/plugins/mycred/">myCRED</a> is an adaptive points management system that lets you award / charge your users for interacting with your WordPress powered website. The Buy Content add-on allows you to sell any publicly available post types, including video presentation posts created by this plugin. You can select to either charge users to view the content or pay the post's author either the whole sum or a percentage.<p>
-<h4>myCRED buyCRED Module</h4>
+<h4>2) myCRED buyCRED Module</h4>
  <?php
 				if (class_exists( 'myCRED_buyCRED_Module' ) ) echo 'Detected'; else echo 'Not detected. Please install and activate myCRED with <a href="admin.php?page=myCRED_page_addons">buyCRED addon</a>!';
 ?>
 <p>
 myCRED <a href="admin.php?page=myCRED_page_addons">buyCRED addon</a> should be enabled and at least 1 <a href="admin.php?page=myCRED_page_gateways"> payment gateway</a> configured for users to be able to buy credits. Setup a page for users to buy credits with shortcode [mycred_buy_form]. </p>
-
+<h4>3) myCRED Sell Content Module</h4>
+ <?php
+				if (class_exists( 'myCRED_Sell_Content_Module' ) ) echo 'Detected'; else echo 'Not detected. Please install and activate myCRED with <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a>!';
+?>
+<p>
+myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should be enabled and "channel" added to Post Types in <a href="admin.php?page=myCRED_page_settings">Sell Content settings tab</a> so access to channels can be sold. You can also configure payout to content author from there, if necessary.
 <?php
 				break;
 

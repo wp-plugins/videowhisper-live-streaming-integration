@@ -5,7 +5,7 @@ Author URI: http://www.videowhisper.com
 Plugin Name: VideoWhisper Live Streaming Broadcast
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Donate link: http://www.videowhisper.com/?p=Invest
-Tags: video, live, BuddyPress, broadcast, stream, tv, chat, widget, plugin, media, livestream, channel, sidebar, webcam, cam, group, twitch, hitbox, justin, ustream, stickam, iOS, wirecast, iPhone, iPad, script, clone, alternative, turnkey
+Tags: video, live, BuddyPress, broadcast, stream, tv, widget, plugin, media, livestream, channel, sidebar, webcam, cam, twitch, hitbox, justin, ustream, stickam, iOS, wirecast, iPhone, iPad, script, clone, alternative, turnkey, myCRED
 Requires at least: 2.7
 Tested up to: 4.2
 Stable tag: trunk
@@ -99,7 +99,7 @@ More information, the latest updates, other plugins and non-WordPress editions c
 = 4.32.21 =
 * myCRED integration: allow selling access to channels
 * channel access list (owner can configure user logins, emails, roles that can access)
- 
+
 = 4.32.8 =
 * Improved iOS HLS transcoding reliability (retry and verify automatically)
 
