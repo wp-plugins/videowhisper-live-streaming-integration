@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.29
+Version: 4.32.31
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -3430,7 +3430,7 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 <h4>Default Webcam Resolution</h4>
 <select name="camResolution" id="camResolution">
 <?php
-				foreach (array('160x120','320x240','480x360', '640x480', '720x480', '720x576', '1280x720', '1440x1080', '1920x1080') as $optItm)
+				foreach (array('160x120','320x240','426x240','480x360', '640x360', '640x480', '720x480', '720x576', '854x480', '1280x720', '1440x1080', '1920x1080') as $optItm)
 				{
 ?>
   <option value="<?php echo $optItm;?>" <?php echo $options['camResolution']==$optItm?"selected":""?>> <?php echo $optItm;?> </option>
@@ -3438,7 +3438,7 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 				}
 ?>
  </select>
- <br>Higher resolution will require higher bandwidth to avoid visible blocking and quality loss. Webcam capture resolution should be same as video size in player/watch interface.
+ <br>Higher resolution will require <a target="_blank" href="http://www.videochat-scripts.com/recommended-h264-video-bitrate-based-on-resolution/">higher bandwidth</a> to avoid visible blocking and quality loss (ex. 1Mbps required for 640x360) .Webcam capture resolution should be same as video size in player/watch interface.
 
 <h4>Default Webcam Frames Per Second</h4>
 <select name="camFPS" id="camFPS">
@@ -3457,7 +3457,7 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 <input name="camBandwidth" type="text" id="camBandwidth" size="7" maxlength="7" value="<?php echo $options['camBandwidth']?>"/> (bytes/s)
 <br>This sets size of video stream (without audio) and therefore the video quality.
 <br>Total stream size should be less than maximum broadcaster upload speed (multiply by 8 to get bps, ex. 50000b/s requires connection higher than 400kbps).
-<br>Do a speed test from broadcaster computer to a location near your streaming (rtmp) server using a tool like <a href="http://www.speedtest.net" target="_blank" >SpeedTest.net</a> . Drag and zoom to a server in contry/state where you host (Ex: central US if you host with VideoWhisper) and select it. The upload speed is the maximum data you'll be able to broadcast.
+<br>Do a speed test from broadcaster computer to a location near your streaming (rtmp) server using a tool like <a href="http://www.speedtest.net" target="_blank">SpeedTest.net</a> . Drag and zoom to a server in contry/state where you host (Ex: central US if you host with VideoWhisper) and select it. The upload speed is the maximum data you'll be able to broadcast.
 
 <h4>Maximum Video Stream Bandwidth (at runtime)</h4>
 <input name="camMaxBandwidth" type="text" id="camMaxBandwidth" size="7" maxlength="7" value="<?php echo $options['camMaxBandwidth']?>"/> (bytes/s)
@@ -3553,7 +3553,7 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 <?php
 				break;
 
-// ! Premium channels
+				// ! Premium channels
 			case 'premium':
 ?>
 <h3>Premium Channels</h3>
