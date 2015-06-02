@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.31
+Version: 4.32.32
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -1385,7 +1385,7 @@ HTMLCODE;
 			return sprintf("%d%s%d%s%d%s", floor($t/86400), 'd ', ($t/3600)%24,'h ', ($t/60)%60,'m');
 		}
 
-
+		//! Ajax
 		function vwls_channels() //list channels
 			{
 			//ajax called
@@ -3892,8 +3892,8 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 		}
 
+		//! Ajax App Calls
 
-		//calls
 		function vwls_calls()
 		{
 			function sanV(&$var, $file=1, $html=1, $mysql=1) //sanitize variable depending on use
@@ -5262,6 +5262,8 @@ lt=last session time received (from web status script)
 
 				$ztime=time();
 
+				$options = get_option('VWliveStreamingOptions');
+
 				global $wpdb;
 				$table_name3 = $wpdb->prefix . "vw_lsrooms";
 
@@ -5269,12 +5271,17 @@ lt=last session time received (from web status script)
 				$channel = $wpdb->get_row($sql);
 				// $wpdb->query($sql);
 
-				if ($channel) if ($channel->type>=2) $ad = '';
-					else             $ad = urlencode(html_entity_decode(stripslashes($options['adsCode'])));
+				if ($channel)
+					if ($channel->type>=2)
+					{
+						$ad = '';
+						$debug='premiumChannel';
+					}
+					else $ad = urlencode(html_entity_decode(stripslashes($options['adsCode'])));
+				else $debug='noChannel';
 
-					$options = get_option('VWliveStreamingOptions');
 
-				?>x=1&ad=<?php echo $ad; ?>&loadstatus=1<?php
+				?>x=1&ad=<?php echo $ad; ?>&loadstatus=1<?php echo '&debug=' . $debug;
 				break;
 			} //end case
 			die();
