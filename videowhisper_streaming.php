@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.33
+Version: 4.32.34
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -487,6 +487,8 @@ if (!class_exists("VWliveStreaming"))
 				else
 				{
 					$name = sanitize_file_name($_POST['newname']);
+					//$name = preg_replace("/[^\s\w]+/", '', $name);
+
 					$comments = sanitize_file_name($_POST['newcomments']);
 
 					$post = array(
@@ -2484,14 +2486,30 @@ Software</a>.</p></div>';
 
 		}
 
-		function adminMenu() {
+		function admin_menu() {
 
 			add_menu_page('Live Streaming', 'Live Streaming', 'manage_options', 'live-streaming', array('VWliveStreaming', 'options'), 'dashicons-video-alt',82);
 			add_submenu_page("live-streaming", "Live Streaming", "Settings", 'manage_options', "live-streaming", array('VWliveStreaming', 'options'));
 			add_submenu_page("live-streaming", "Live Streaming", "Statistics", 'manage_options', "live-streaming-stats", array('VWliveStreaming', 'adminStats'));
 			add_submenu_page("live-streaming", "Live Streaming", "Live & Ban", 'manage_options', "live-streaming-live", array('VWliveStreaming', 'adminLive'));
 			add_submenu_page("live-streaming", "Live Streaming", "Docs", 'manage_options', "live-streaming-docs", array('VWliveStreaming', 'adminDocs'));
+
+			//hide add submenu
+			global $submenu;
+			unset($submenu['edit.php?post_type=channel'][10]);
 		}
+
+		function admin_head() {
+			if( !get_post_type() == 'channel') return;
+
+			//hide add button
+			echo '<style type="text/css">
+    #favorite-actions {display:none;}
+    .add-new-h2{display:none;}
+    .tablenav{display:none;}
+    </style>';
+		}
+
 
 		function adminStats()
 		{
@@ -3562,7 +3580,7 @@ Options for premium channels. Premium channels have special settings and feature
 <h4>Members that broadcast premium channels (Premium members: comma separated user names, roles, emails, IDs)</h4>
 <textarea name="premiumList" cols="64" rows="3" id="premiumList"><?php echo $options['premiumList']?>
 </textarea>
-Warning: Certain plugins may implement roles that have a different label than role name. Ex: s2member_level1
+<br>Warning: Certain plugins may implement roles that have a different label than role name. Ex: s2member_level1
 
 <h4>Who can watch premium channels</h4>
 <select name="canWatchPremium" id="canWatchPremium">
@@ -5278,7 +5296,7 @@ lt=last session time received (from web status script)
 						$ad = '';
 						$debug='premiumChannel';
 					}
-					else $ad = urlencode(html_entity_decode(stripslashes($options['adsCode'])));
+				else $ad = urlencode(html_entity_decode(stripslashes($options['adsCode'])));
 				else $debug='noChannel';
 
 
@@ -5305,7 +5323,8 @@ if (isset($liveStreaming)) {
 	add_action( 'init', array(&$liveStreaming, 'channel_post'));
 
 	add_action("plugins_loaded", array(&$liveStreaming, 'init'));
-	add_action('admin_menu', array(&$liveStreaming, 'adminMenu'));
+	add_action('admin_menu', array(&$liveStreaming, 'admin_menu'));
+	add_action('admin_head', array(&$liveStreaming, 'admin_head'));
 	add_action( 'admin_init', array(&$liveStreaming, 'admin_init'));
 
 
