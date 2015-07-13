@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.34
+Version: 4.32.37
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -63,6 +63,7 @@ if (!class_exists("VWliveStreaming"))
 
 
 			//ajax
+
 			add_action( 'wp_ajax_vwls_trans', array('VWliveStreaming','vwls_trans') );
 			add_action( 'wp_ajax_nopriv_vwls_trans', array('VWliveStreaming','vwls_trans'));
 			add_action( 'wp_ajax_vwls_broadcast', array('VWliveStreaming','vwls_broadcast'));
@@ -73,6 +74,8 @@ if (!class_exists("VWliveStreaming"))
 			add_action( 'wp_ajax_vwls_channels', array('VWliveStreaming','vwls_channels'));
 			add_action( 'wp_ajax_nopriv_vwls_channels', array('VWliveStreaming','vwls_channels'));
 
+			//jquery for ajax
+			add_action( 'wp_enqueue_scripts', array('VWliveStreaming','wp_enqueue_scripts') );
 
 			//update page if not exists or deleted
 			$page_id = get_option("vwls_page_manage");
@@ -260,7 +263,7 @@ if (!class_exists("VWliveStreaming"))
 			if (strtolower(trim($data)) == 'none') return 0;
 
 			$list=explode(",", strtolower(trim($data)));
-			if (in_array('All', $list)) return 1;
+			if (in_array('all', $list)) return 1;
 
 			foreach ($keys as $key)
 				foreach ($list as $listing)
@@ -337,11 +340,13 @@ if (!class_exists("VWliveStreaming"))
 
 			if ($channelR->type >=2) //premium
 				{
-				$maximumBroadcastTime =  60 * $options['pBroadcastTime'];
-				$maximumWatchTime =  60 * $options['pWatchTime'];
+				$poptions = VWliveStreaming::typeOptions($channelR->type, $options);
 
-				$canWatch = $options['canWatchPremium'];
-				$watchList = $options['watchPremium'];
+				$maximumBroadcastTime =  60 * $poptions['pBroadcastTime'];
+				$maximumWatchTime =  60 * $poptions['pWatchTime'];
+
+				$canWatch = $poptions['canWatchPremium'];
+				$watchList = $poptions['watchListPremium'];
 			}
 			else
 			{
@@ -415,6 +420,22 @@ if (!class_exists("VWliveStreaming"))
 		//! Shortcodes
 
 
+		function getCurrentURL()
+		{
+			$currentURL = (@$_SERVER["HTTPS"] == "on") ? "https://" : "http://";
+			$currentURL .= $_SERVER["SERVER_NAME"];
+
+			if($_SERVER["SERVER_PORT"] != "80" && $_SERVER["SERVER_PORT"] != "443")
+			{
+				$currentURL .= ":".$_SERVER["SERVER_PORT"];
+			}
+
+			$uri_parts = explode('?', $_SERVER['REQUEST_URI'], 2);
+
+			$currentURL .= $uri_parts[0];
+			return $currentURL;
+		}
+
 		function shortcode_manage()
 		{
 			//can user create room?
@@ -458,26 +479,10 @@ if (!class_exists("VWliveStreaming"))
 				return $htmlCode;
 			}
 
-			function getCurrentURL()
-			{
-				$currentURL = (@$_SERVER["HTTPS"] == "on") ? "https://" : "http://";
-				$currentURL .= $_SERVER["SERVER_NAME"];
-
-				if($_SERVER["SERVER_PORT"] != "80" && $_SERVER["SERVER_PORT"] != "443")
-				{
-					$currentURL .= ":".$_SERVER["SERVER_PORT"];
-				}
-
-				$uri_parts = explode('?', $_SERVER['REQUEST_URI'], 2);
-
-				$currentURL .= $uri_parts[0];
-				return $currentURL;
-			}
-
-			$this_page    =   getCurrentURL();
+			$this_page    =   VWliveStreaming::getCurrentURL();
 			$channels_count = VWliveStreaming::count_user_posts_by_type($current_user->ID, 'channel');
 
-			//setup
+			//! save channel
 			$postID = $_POST['editPost']; //-1 for new
 
 			if ($postID) //create or update
@@ -517,13 +522,50 @@ if (!class_exists("VWliveStreaming"))
 
 					$channels_count = VWliveStreaming::count_user_posts_by_type($current_user->ID, 'channel');
 
+					//transcode
+					if (VWliveStreaming::inList($userkeys, $options['transcode']))
+						update_post_meta($postID, 'vw_transcode', '1');
+					else update_post_meta($postID, 'vw_transcode', '0');
+
+
+					//logoHide
+					if (VWliveStreaming::inList($userkeys, $options['logoHide']))
+						update_post_meta($postID, 'vw_logo', 'hide');
+					else update_post_meta($postID, 'vw_logo', 'global');
+
+					//logoCustom
+					if (VWliveStreaming::inList($userkeys, $options['logoCustom']))
+					{
+						$logoImage = sanitize_text_field($_POST['logoImage']);
+						update_post_meta($postID, 'vw_logoImage', $logoImage);
+
+						$logoLink = sanitize_text_field($_POST['logoLink']);
+						update_post_meta($postID, 'vw_logoLink', $logoLink);
+
+						update_post_meta($postID, 'vw_logo', 'custom');
+					}
+
+					//adsHide
+					if (VWliveStreaming::inList($userkeys, $options['adsHide']))
+						update_post_meta($postID, 'vw_ads', 'hide');
+					else update_post_meta($postID, 'vw_ads', 'global');
+
+
+					//adsCustom
+					if (VWliveStreaming::inList($userkeys, $options['adsCustom']))
+					{
+						$logoImage = sanitize_text_field($_POST['adsServer']);
+						update_post_meta($postID, 'vw_adsServer', $logoImage);
+
+						update_post_meta($postID, 'vw_ads', 'custom');
+					}
+
 					//accessList
 					if (VWliveStreaming::inList($userkeys, $options['accessList']))
 					{
 						$accessList = sanitize_text_field($_POST['accessList']);
 						update_post_meta($postID, 'vw_accessList', $accessList);
 					}
-
 
 					if (VWliveStreaming::inList($userkeys, $options['accessPrice']))
 					{
@@ -540,7 +582,6 @@ if (!class_exists("VWliveStreaming"))
 						if ($options['mycred'] && $accessPrice) update_post_meta($postID, 'myCRED_sell_content', $mCa);
 						else delete_post_meta($postID, 'myCRED_sell_content');
 
-
 					}
 
 				}
@@ -548,130 +589,148 @@ if (!class_exists("VWliveStreaming"))
 			}
 
 
-			$premiumUser=0;
-			if (VWliveStreaming::inList($userkeys, $options['premiumList'])) $premiumUser=1;
+			//! list channels
 
-			$htmlCode .= apply_filters("vw_ls_manage_channels_head", '');
-
-			//list
-			$htmlCode .= "<h3>My Channels ($channels_count/$maxChannels)</h3>";
-			$args = array(
-				'author'           => $current_user->ID,
-				'orderby'          => 'post_date',
-				'order'            => 'DESC',
-				'post_type'        => 'channel',
-			);
-
-			$channels = get_posts( $args );
-			if (count($channels))
+			if (!$_GET['editChannel'])
 			{
-				require_once( ABSPATH . 'wp-admin/includes/image.php' );
+				$htmlCode .= apply_filters("vw_ls_manage_channels_head", '');
 
-				$htmlCode .= '<table>';
+				$htmlCode .= "<h3>My Channels ($channels_count/$maxChannels)</h3>";
+				$args = array(
+					'author'           => $current_user->ID,
+					'orderby'          => 'post_date',
+					'order'            => 'DESC',
+					'post_type'        => 'channel',
+				);
 
-				foreach ($channels as $channel)
+				$channels = get_posts( $args );
+				if (count($channels))
 				{
+					require_once( ABSPATH . 'wp-admin/includes/image.php' );
 
-					$stream = sanitize_file_name(get_the_title($channel->ID));
+					$htmlCode .= '<table>';
 
-					//update room
-					//setup/update channel, premium & time reset
+					foreach ($channels as $channel)
+					{
+						$postID = $channel->ID;
 
-					$room = $stream;
-					$ztime = time();
+						$stream = sanitize_file_name(get_the_title($postID));
 
+						//update room
+						//setup/update channel, premium & time reset
 
-					if ($premiumUser) //premium room
+						$room = $stream;
+						$ztime = time();
+
+						$poptions = VWliveStreaming::premiumOptions($userkeys, $options);
+
+						if ($poptions) //premium room
+							{
+							$rtype = 1 + $poptions['level'];
+							$maximumBroadcastTime =  60 * $poptions['pBroadcastTime'];
+							$maximumWatchTime =  60 * $poptions['pWatchTime'];
+
+							// $camBandwidth=$options['pCamBandwidth'];
+							// $camMaxBandwidth=$options['pCamMaxBandwidth'];
+							// if (!$options['pLogo']) $options['overLogo']=$options['overLink']='';
+
+						}else
 						{
-						$rtype=2;
-						$maximumBroadcastTime =  60 * $options['pBroadcastTime'];
-						$maximumWatchTime =  60 * $options['pWatchTime'];
+							$rtype=1;
+							//$camBandwidth=$options['camBandwidth'];
+							//$camMaxBandwidth=$options['camMaxBandwidth'];
 
-						// $camBandwidth=$options['pCamBandwidth'];
-						// $camMaxBandwidth=$options['pCamMaxBandwidth'];
-						// if (!$options['pLogo']) $options['overLogo']=$options['overLink']='';
-
-					}else
-					{
-						$rtype=1;
-						//$camBandwidth=$options['camBandwidth'];
-						//$camMaxBandwidth=$options['camMaxBandwidth'];
-
-						$maximumBroadcastTime =  60 * $options['broadcastTime'];
-						$maximumWatchTime =  60 * $options['watchTime'];
-					}
-
-					global $wpdb;
-					$table_name3 = $wpdb->prefix . "vw_lsrooms";
-
-					$sql = "SELECT * FROM $table_name3 where owner='$username' and name='$room'";
-					$channelR = $wpdb->get_row($sql);
-
-					if (!$channelR)
-						$sql="INSERT INTO `$table_name3` ( `owner`, `name`, `sdate`, `edate`, `rdate`,`status`, `type`) VALUES ('$username', '$room', $ztime, $ztime, $ztime, 0, $rtype)";
-					elseif ($options['timeReset'] && $channelR->rdate < $ztime - $options['timeReset']*24*3600) //time to reset in days
-						$sql="UPDATE `$table_name3` set type=$rtype, rdate=$ztime, wtime=0, btime=0 where owner='$username' and name='$room'";
-					else
-						$sql="UPDATE `$table_name3` set type=$rtype where owner='$username' and name='$room'";
-
-					$wpdb->query($sql);
-
-					//update thumb
-					$dir = $options['uploadsPath']. "/_snapshots";
-					$thumbFilename = "$dir/$stream.jpg";
-
-					//only if image exits
-					if ( file_exists($thumbFilename))
-					{
-						if ( !get_post_thumbnail_id( $postID ) ) //insert
-							{
-							$wp_filetype = wp_check_filetype(basename($thumbFilename), null );
-
-							$attachment = array(
-								'guid' => $thumbFilename,
-								'post_mime_type' => $wp_filetype['type'],
-								'post_title' => preg_replace( '/\.[^.]+$/', '', basename( $thumbFilename, ".jpg" ) ),
-								'post_content' => '',
-								'post_status' => 'inherit'
-							);
-
-							$attach_id = wp_insert_attachment( $attachment, $thumbFilename, $postID );
-						}
-						else //update
-							{
-							$attach_id = get_post_thumbnail_id($channel->ID );
-							$thumbFilename = get_attached_file($attach_id);
+							$maximumBroadcastTime =  60 * $options['broadcastTime'];
+							$maximumWatchTime =  60 * $options['watchTime'];
 						}
 
-						//update
-						$attach_data = wp_generate_attachment_metadata( $attach_id, $thumbFilename );
-						wp_update_attachment_metadata( $attach_id, $attach_data );
+						global $wpdb;
+						$table_name3 = $wpdb->prefix . "vw_lsrooms";
+
+						$sql = "SELECT * FROM $table_name3 where owner='$username' and name='$room'";
+						$channelR = $wpdb->get_row($sql);
+
+						if (!$channelR)
+							$sql="INSERT INTO `$table_name3` ( `owner`, `name`, `sdate`, `edate`, `rdate`,`status`, `type`) VALUES ('$username', '$room', $ztime, $ztime, $ztime, 0, $rtype)";
+						elseif ($options['timeReset'] && $channelR->rdate < $ztime - $options['timeReset']*24*3600) //time to reset in days
+							$sql="UPDATE `$table_name3` set type=$rtype, rdate=$ztime, wtime=0, btime=0 where owner='$username' and name='$room'";
+						else
+							$sql="UPDATE `$table_name3` set type=$rtype where owner='$username' and name='$room'";
+
+						$wpdb->query($sql);
+
+						//update thumb
+						$dir = $options['uploadsPath']. "/_snapshots";
+						$thumbFilename = "$dir/$stream.jpg";
+
+						//only if image exits
+						if ( file_exists($thumbFilename))
+						{
+							if ( !get_post_thumbnail_id( $postID ) ) //insert
+								{
+								$wp_filetype = wp_check_filetype(basename($thumbFilename), null );
+
+								$attachment = array(
+									'guid' => $thumbFilename,
+									'post_mime_type' => $wp_filetype['type'],
+									'post_title' => preg_replace( '/\.[^.]+$/', '', basename( $thumbFilename, ".jpg" ) ),
+									'post_content' => '',
+									'post_status' => 'inherit'
+								);
+
+								$attach_id = wp_insert_attachment( $attachment, $thumbFilename, $postID );
+								set_post_thumbnail($postID, $attach_id);
+							}
+							else //update
+								{
+								$attach_id = get_post_thumbnail_id($postID );
+								$thumbFilename = get_attached_file($attach_id);
+							}
+
+							//cleanup any relics
+							if ($postID && $attach_id) VWliveStreaming::delete_associated_media($postID, false, $attach_id);
+
+							//update
+							$attach_data = wp_generate_attachment_metadata( $attach_id, $thumbFilename );
+							wp_update_attachment_metadata( $attach_id, $attach_data );
+						}
+
+
+						$htmlCode .= '<tr><td><a href="' . get_permalink($postID) . '"><h4>' . $channel->post_title . '</h4>' .  get_the_post_thumbnail($postID, 'medium') . '</a>';
+
+						if ($channelR)
+							$htmlCode .= '<br> Broadcast: ' . VWliveStreaming::format_time($channelR->btime) . ' / ' . VWliveStreaming::format_time($maximumBroadcastTime) .  '<br> Watch: ' . VWliveStreaming::format_time($channelR->wtime) . ' / ' . VWliveStreaming::format_time($maximumWatchTime);
+
+						$htmlCode .= '<br> Type: ' . ($channelR->type>1?'Premium '. ($channelR->type-1):'Regular '. $channelR->type);
+						$htmlCode .= '<br> Logo: ' . get_post_meta( $postID, 'vw_logo', true );
+						$htmlCode .= '<br> Ads: ' . get_post_meta( $postID, 'vw_ads', true );
+
+
+
+
+						$htmlCode .= '</td>';
+						$htmlCode .= '<td width="210px">';
+						$htmlCode .= '<BR><BR><a class="videowhisperButton g-btn type_red" href="' . get_permalink($channel->ID) . '/broadcast"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_webcam.png" align="absmiddle">Broadcast</a>';
+						if ($options['externalKeys']) $htmlCode .= '<BR> <a class="videowhisperButton g-btn type_pink" href="' . get_permalink($channel->ID) . '/external"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_webcam.png" align="absmiddle">External Apps</a>';
+						$htmlCode .= '<BR> <a class="videowhisperButton g-btn type_green" href="' . get_permalink($channel->ID) . '"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_uchat.png" align="absmiddle">Chat &amp; Video</a>';
+						$htmlCode .= '<BR> <a class="videowhisperButton g-btn type_green" href="' . get_permalink($channel->ID) . '/video"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_uvideo.png" align="absmiddle">Video</a>';
+						$htmlCode .= '<BR> <a class="videowhisperButton g-btn type_yellow" href="' . $this_page . '?editChannel=' . $channel->ID . '"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_tools.png" align="absmiddle">Setup</a>';
+						$htmlCode .= '</td></tr>';
+						//filter under channel
+						$htmlCode .= '<tr><td colspan=2>' . apply_filters("vw_ls_manage_channel", '', $channel->ID) . '</td></tr>';
+
 					}
-
-
-					$htmlCode .= '<tr><td><a href="' . get_permalink($channel->ID) . '"><h4>' . $channel->post_title . '</h4>' .  get_the_post_thumbnail($channel->ID, 'medium') . '</a>';
-
-					if ($channelR) $htmlCode .= '<br> Broadcast: ' . VWliveStreaming::format_time($channelR->btime) . ' / ' . VWliveStreaming::format_time($maximumBroadcastTime) .  '<br> Watch: ' . VWliveStreaming::format_time($channelR->wtime) . ' / ' . VWliveStreaming::format_time($maximumWatchTime);
-
-					$htmlCode .= '</td>';
-					$htmlCode .= '<td width="210px">';
-					$htmlCode .= '<BR><BR><a class="videowhisperButton g-btn type_red" href="' . get_permalink($channel->ID) . '/broadcast"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_webcam.png" align="absmiddle">Broadcast</a>';
-					if ($options['externalKeys']) $htmlCode .= '<BR> <a class="videowhisperButton g-btn type_pink" href="' . get_permalink($channel->ID) . '/external"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_webcam.png" align="absmiddle">External Apps</a>';
-					$htmlCode .= '<BR> <a class="videowhisperButton g-btn type_green" href="' . get_permalink($channel->ID) . '"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_uchat.png" align="absmiddle">Chat &amp; Video</a>';
-					$htmlCode .= '<BR> <a class="videowhisperButton g-btn type_green" href="' . get_permalink($channel->ID) . '/video"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_uvideo.png" align="absmiddle">Video</a>';
-					$htmlCode .= '<BR> <a class="videowhisperButton g-btn type_yellow" href="' . $this_page . '?editChannel=' . $channel->ID . '"> <img src="' .plugin_dir_url(__FILE__). 'ls/templates/live/i_tools.png" align="absmiddle">Setup</a>';
-					$htmlCode .= '</td></tr>';
-					//filter under channel
-					$htmlCode .= '<tr><td colspan=2>' . apply_filters("vw_ls_manage_channel", '', $channel->ID) . '</td></tr>';
+					$htmlCode .= '</table>';
 
 				}
-				$htmlCode .= '</table>';
+				else
+					$htmlCode .= "<div class='warning'>You don't have any channels, yet!</div>";
 
+				$htmlCode .= apply_filters("vw_ls_manage_channels_foot", '');
 			}
-			else
-				$htmlCode .= "<div class='warning'>You don't have any channels, yet!</div>";
 
-			$htmlCode .= html_entity_decode(stripslashes($options['customCSS']));
+			//! form
+
 			//setup
 			$newCat = -1;
 
@@ -692,6 +751,9 @@ if (!class_exists("VWliveStreaming"))
 
 			if (!$editPost) {
 				$editPost = -1;
+
+				$newTitle = 'New';
+
 				$newName = sanitize_file_name($username);
 				if ($channels_count) $newName .= '_' . base_convert(time()-1225000000,10,36);
 				$nameField = 'text';
@@ -727,10 +789,32 @@ if (!class_exists("VWliveStreaming"))
 			//accessPrice
 			if (VWliveStreaming::inList($userkeys, $options['accessPrice']))
 			{
-				if ($editPost) $value = get_post_meta( $editPost, 'vw_accessPrice', true );
-				else $value = '';
+				if ($editPost>0) $value = get_post_meta( $editPost, 'vw_accessPrice', true );
+				else $value = '0.00';
 
 				$extraRows .= '<tr><td>Access Price</td><td><input size=5 name="accessPrice" id="accessPrice" value="' . $value . '"><BR>Channel access price. Leave 0 for free access.</td></tr>';
+			}
+
+			//logoCustom
+			if (VWliveStreaming::inList($userkeys, $options['logoCustom']))
+			{
+				if ($editPost>0) $value = get_post_meta( $editPost, 'vw_logoImage', true );
+				else $value =  $options['overLogo'];
+
+				$extraRows .= '<tr><td>Logo Image</td><td><input size=64 name="logoImage" id="logoImage" value="' . $value . '"><BR>Channel floating logo. Leave blank to hide.</td></tr>';
+				if ($editPost>0) $value = get_post_meta( $editPost, 'vw_logoLink', true );
+				else $value = $options['overLink'];
+
+				$extraRows .= '<tr><td>Logo Link</td><td><input size=64 name="logoLink" id="logoImage" value="' . $value . '"><BR>URL to link from logo.</td></tr>';
+			}
+
+			//adsCustom
+			if (VWliveStreaming::inList($userkeys, $options['adsCustom']))
+			{
+				if ($editPost>0) $value = get_post_meta( $editPost, 'vw_adsServer', true );
+				else $value = $options['adServer'];
+
+				$extraRows .= '<tr><td>Ads Server</td><td><input size=64 name="adsServer" id="adsServer" value="' . $value . '"><BR>See <a href="http://www.adinchat.com" target="_blank"><U><b>AD in Chat</b></U></a> compatible ad management server. Leave blank to disable.</td></tr>';
 			}
 
 
@@ -754,7 +838,7 @@ if (!class_exists("VWliveStreaming"))
 
 
 <form method="post" action="$this_page" name="adminForm" class="w-actionbox">
-<h3>Setup Channel</h3>
+<h3>Setup $newTitle Channel</h3>
 <table class="g-input" width="500px">
 <tr><td>Name</td><td><input name="newname" type="$nameField" id="newname" value="$newName" size="20" maxlength="64" onChange="censorName()"/>$newNameL</td></tr>
 <tr><td>Description</td><td><textarea rows=3 name='description' id='description'>$newDescription</textarea></td></tr>
@@ -765,10 +849,9 @@ $extraRows
 </table>
 <input type="hidden" name="editPost" id="editPost" value="$editPost" />
 </form>
-
 HTMLCODE;
 
-			$htmlCode .= apply_filters("vw_ls_manage_channels_foot", '');
+			$htmlCode .= html_entity_decode(stripslashes($options['customCSS']));
 
 			return $htmlCode;
 
@@ -1270,7 +1353,7 @@ HTMLCODE;
 
 				$admin_ajax = admin_url() . 'admin-ajax.php';
 
-				if (VWliveStreaming::inList($userkeys, $options['premiumList'])) //premium broadcasters can transcode
+				if (VWliveStreaming::inList($userkeys, $options['transcode'])) //transcode feature enabled
 					if ($options['transcoding'])
 						$htmlCode .= <<<HTMLCODE
 <div id="vwinfo">
@@ -1389,6 +1472,12 @@ HTMLCODE;
 		}
 
 		//! Ajax
+		function wp_enqueue_scripts()
+		{
+			wp_enqueue_script("jquery");
+
+		}
+
 		function vwls_channels() //list channels
 			{
 			//ajax called
@@ -1929,8 +2018,35 @@ Software</a>.</p></div>';
 		}
 
 
-		//! Channel Post
+		function delete_associated_media($id, $unlink=false, $except=0) {
 
+			$htmlCode .= "Removing... ";
+
+			$media = get_children(array(
+					'post_parent' => $id,
+					'post_type' => 'attachment'
+				));
+			if (empty($media)) return $htmlCode;
+
+			foreach ($media as $file) {
+
+				if ($except) if ($file->ID == $except) break;
+
+					if ($unlink)
+					{
+						$filename = get_attached_file($file->ID);
+						$htmlCode .=  " Removing $filename #" . $file->ID;
+						if (file_exists($filename)) unlink($filename);
+					}
+
+				wp_delete_attachment($file->ID);
+			}
+
+			return $htmlCode;
+		}
+
+
+		//! Channel Post
 		function channel_page($content)
 		{
 
@@ -1975,7 +2091,9 @@ Software</a>.</p></div>';
 			$dir = $options['uploadsPath']. "/_snapshots";
 			$thumbFilename = "$dir/$stream.jpg";
 
-			//only if file exists and missing post thumb
+			$attach_id = get_post_thumbnail_id($postID);
+
+			//update post thumb  if file exists and missing post thumb
 			if ( file_exists($thumbFilename) && !get_post_thumbnail_id( $postID ))
 			{
 				$wp_filetype = wp_check_filetype(basename($thumbFilename), null );
@@ -1995,6 +2113,8 @@ Software</a>.</p></div>';
 				$attach_data = wp_generate_attachment_metadata( $attach_id, $thumbFilename );
 				wp_update_attachment_metadata( $attach_id, $attach_data );
 			}
+
+			if ($postID && $attach_id) VWliveStreaming::delete_associated_media($postID, false, $attach_id);
 
 			$maxViewers =  get_post_meta($postID, 'maxViewers', true);
 			if (!is_array($maxViewers)) if ($maxViewers>0)
@@ -2500,7 +2620,7 @@ Software</a>.</p></div>';
 		}
 
 		function admin_head() {
-			if( !get_post_type() == 'channel') return;
+			if( get_post_type() != 'channel') return;
 
 			//hide add button
 			echo '<style type="text/css">
@@ -2759,12 +2879,39 @@ align="absmiddle" border="0">Start Broadcasting</a>
 				'accessList' => array(
 					'name'=>'Access List',
 					'description' =>'Can specify list of user logins, roles, emails that can access the channel.',
-					'installed' => 1),
+					'installed' => 1,
+					'default' => 'None'),
 				'accessPrice' => array(
 					'name'=>'Access Price',
 					'description' =>'Can setup a price per channel. Requires myCRED plugin installed and integration enabled from Billing.',
 					'type' => 'number',
-					'installed' => 1),
+					'installed' => 1,
+					'default' => 'None'),
+				'logoHide' => array(
+					'name'=>'Hide Logo',
+					'description' =>'Hides logo from channel.',
+					'installed' => 1,
+					'default' => 'Super Admin, Administrator, Editor'),
+				'logoCustom' => array(
+					'name'=>'Custom Logo',
+					'description' =>'Can setup a custom logo. Overrides hide logo feature.',
+					'installed' => 1,
+					'default' => 'Super Admin, Administrator'),
+				'adsHide' => array(
+					'name'=>'Hide Ads',
+					'description' =>'Hides ads from channel.',
+					'installed' => 1,
+					'default' => 'Super Admin, Administrator, Editor'),
+				'adsCustom' => array(
+					'name'=>'Custom Ads',
+					'description' =>'Can setup a custom ad server. Overrides hide ads feature.',
+					'installed' => 1,
+					'default' => 'Super Admin, Administrator'),
+				'transcode' => array(
+					'name'=>'Transcode',
+					'description' =>'Shows transcoding interface with web broadcasting interface.',
+					'installed' => 1,
+					'default' => 'Super Admin, Administrator, Editor'),
 				'privateList' => array(
 					'name'=>'Private Channels',
 					'description' =>'Hide channels from public listings. Can be accessed by channel links.',
@@ -2785,7 +2932,6 @@ align="absmiddle" border="0">Start Broadcasting</a>
 		}
 
 		//! Settings
-
 
 		function setupOptions() {
 
@@ -2830,11 +2976,15 @@ align="absmiddle" border="0">Start Broadcasting</a>
 				'premiumList' => 'Super Admin, Administrator, Editor, Author',
 				'canWatchPremium' => 'all',
 				'watchListPremium' => 'Super Admin, Administrator, Editor, Author, Contributor, Subscriber',
-				'pLogo' => '1',
-				'broadcastTime' => '0',
-				'watchTime' => '0',
-				'pBroadcastTime' => '0',
-				'pWatchTime' => '0',
+
+				'premiumLevelsNumber' =>'2',
+				'premiumLevels' =>'',
+
+				// 'pLogo' => '1',
+				'broadcastTime' => '600',
+				'watchTime' => '3000',
+				'pBroadcastTime' => '6000',
+				'pWatchTime' => '30000',
 				'timeReset' => '30',
 				'bannedNames' => 'bann1, bann2',
 
@@ -3079,7 +3229,7 @@ HTMLCODE
 			);
 
 			$features = VWliveStreaming::roomFeatures();
-			foreach ($features as $key=>$feature) if ($feature['installed'])  $adminOptions[$key] = 'All';
+			foreach ($features as $key=>$feature) if ($feature['installed'])  $adminOptions[$key] = $feature['default'];
 
 				$options = get_option('VWliveStreamingOptions');
 			if (!empty($options)) {
@@ -3211,7 +3361,7 @@ align="absmiddle" border="0"><?php echo $broadcast_url . urlencode($username); ?
 
 <h4>Chat Advertising Server</h4>
 <input name="adServer" type="text" id="adServer" size="80" maxlength="256" value="<?php echo $options['adServer']?>"/>
-<br>Use 'ads' for local content. See <a href="http://www.adinchat.com" target="_blank"><U><b>AD in Chat</b></U></a> compatible ad management server. Ads do not show on premium channels.
+<br>Use 'ads' for local content. See <a href="http://www.adinchat.com" target="_blank"><U><b>AD in Chat</b></U></a> compatible ad management server. This can be controlled by channel owners based on features setup.
 
 <h4>Chat Advertising Interval</h4>
 <input name="adsInterval" type="text" id="adsInterval" size="6" maxlength="6" value="<?php echo $options['adsInterval']?>"/>
@@ -3319,6 +3469,14 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 						}
 					}
 ?>
+<h4>Enable Transcoding</h4>
+<select name="transcoding" id="transcoding">
+  <option value="0" <?php echo $options['transcoding']?"":"selected"?>>No</option>
+  <option value="1" <?php echo $options['transcoding']?"selected":""?>>Yes</option>
+</select>
+<BR>Transcoding is required for re-encoding live streams broadcast using web client to new re-encoded streams accessible by iOS using HLS. This requires high server processing power for each stream.
+<BR>HLS support is also required on RTMP server and this is usually available with <a href="http://www.videowhisper.com/?p=Wowza+Media+Server+Hosting">Wowza Hosting</a> .
+<BR>Transcoding is not required when stream is already broadcast with external encoders in appropriate formats (H264, AAC with supported settings).
 
 <h4>FFMPEG Transcoding Parameters</h4>
 <input name="ffmpegTranscode" type="text" id="ffmpegTranscode" size="100" maxlength="256" value="<?php echo $options['ffmpegTranscode']?>"/>
@@ -3577,35 +3735,73 @@ Settings for web based broadcasting interface. Do not apply for external apps.
 ?>
 <h3>Premium Channels</h3>
 Options for premium channels. Premium channels have special settings and features that can be defined here.
+
+<h4>Number of Premium Levels</h4>
+<input name="premiumLevelsNumber" type="text" id="premiumLevelsNumber" size="7" maxlength="7" value="<?php echo $options['premiumLevelsNumber']?>"/>
+<br>Number of premium membership levels.
+
+<?php
+
+				$premiumLev = unserialize($options['premiumLevels']);
+
+				for ($i=0; $i < $options['premiumLevelsNumber']; $i++)
+				{
+
+					$premiumLev[$i]['level'] = $i+1;
+
+					foreach (array('premiumList','canWatchPremium','watchListPremium','pBroadcastTime','pWatchTime','pCamBandwidth','pCamMaxBandwidth') as $varName)
+					{
+						if (isset($_POST[$varName . $i])) $premiumLev[$i][$varName] = $_POST[$varName . $i];
+						if (!isset($premiumLev[$i][$varName])) $premiumLev[$i][$varName] = $options[$varName]; //default from options
+					}
+?>
+
+<h3>Premium Level <?php echo ($i+1); ?></h3>
+
 <h4>Members that broadcast premium channels (Premium members: comma separated user names, roles, emails, IDs)</h4>
-<textarea name="premiumList" cols="64" rows="3" id="premiumList"><?php echo $options['premiumList']?>
+<textarea name="premiumList<?php echo $i ?>" cols="64" rows="3" id="premiumList<?php echo $i ?>"><?php echo $premiumLev[$i]['premiumList']?>
 </textarea>
+<br>Highest level match is selected.
 <br>Warning: Certain plugins may implement roles that have a different label than role name. Ex: s2member_level1
 
 <h4>Who can watch premium channels</h4>
-<select name="canWatchPremium" id="canWatchPremium">
-  <option value="all" <?php echo $options['canWatchPremium']=='all'?"selected":""?>>Anybody</option>
-  <option value="members" <?php echo $options['canWatchPremium']=='members'?"selected":""?>>All Members</option>
-  <option value="list" <?php echo $options['canWatchPremium']=='list'?"selected":""?>>Members in List</option>
+<select name="canWatchPremium<?php echo $i ?>" id="canWatchPremium<?php echo $i ?>">
+  <option value="all" <?php echo $premiumLev[$i]['canWatchPremium']=='all'?"selected":""?>>Anybody</option>
+  <option value="members" <?php echo $premiumLev[$i]['canWatchPremium']=='members'?"selected":""?>>All Members</option>
+  <option value="list" <?php echo $premiumLev[$i]['canWatchPremium']=='list'?"selected":""?>>Members in List</option>
 </select>
-<h4>Members allowed to watch premium channels (comma separated usernames, roles, IDs)</h4>
-<textarea name="watchListPremium" cols="64" rows="3" id="watchListPremium"><?php echo $options['watchListPremium']?>
+
+<h4>Members allowed to watch premium channels (comma separated usernames, roles, emails, IDs)</h4>
+<textarea name="watchListPremium<?php echo $i ?>" cols="64" rows="3" id="watchListPremium<?php echo $i ?>"><?php echo $premiumLev[$i]['watchListPremium']?>
 </textarea>
 
+<h4>Maximum Broadcating Time (0 = unlimited)</h4>
+<input name="pBroadcastTime<?php echo $i ?>" type="text" id="pBroadcastTime<?php echo $i ?>" size="7" maxlength="7" value="<?php echo $premiumLev[$i]['pBroadcastTime']?>"/> (minutes/period)
+
+<h4>Maximum Channel Watch Time (total cumulated view time, 0 = unlimited)</h4>
+<input name="pWatchTime<?php echo $i ?>" type="text" id="pWatchTime<?php echo $i ?>" size="10" maxlength="10" value="<?php echo $premiumLev[$i]['pWatchTime']?>"/> (minutes/period)
+
+<h4>Video Stream Bandwidth</h4>
+<input name="pCamBandwidth<?php echo $i ?>" type="text" id="pCamBandwidth<?php echo $i ?>" size="7" maxlength="7" value="<?php echo $premiumLev[$i]['pCamBandwidth']?>"/> (bytes/s)
+<br>Default stream size for web broadcasting interface.
+
+<h4>Maximum Video Stream Bandwidth (at runtime)</h4>
+<input name="pCamMaxBandwidth<?php echo $i ?>" type="text" id="pCamMaxBandwidth<?php echo $i ?>" size="7" maxlength="7" value="<?php echo $premiumLev[$i]['pCamMaxBandwidth']?>"/> (bytes/s)
+<br>Maximum stream size for web broadcasting interface.
+<?php
+				}
+
+
+
+				$options['premiumLevels'] = serialize($premiumLev);
+				update_option('VWliveStreamingOptions', $options);
+
+				/*
 <h4>Show Floating Logo/Watermark</h4>
 <select name="pLogo" id="pLogo">
   <option value="0" <?php echo $options['pLogo']?"":"selected"?>>No</option>
   <option value="1" <?php echo $options['pLogo']?"selected":""?>>Yes</option>
 </select>
-
-<h4>Enable Transcoding</h4>
-<select name="transcoding" id="transcoding">
-  <option value="0" <?php echo $options['transcoding']?"":"selected"?>>No</option>
-  <option value="1" <?php echo $options['transcoding']?"selected":""?>>Yes</option>
-</select>
-<BR>Transcoding is required for re-encoding live streams broadcast using web client to new re-encoded streams accessible by iOS using HLS. This requires high server processing power for each stream.
-<BR>HLS support is also required on RTMP server and this is usually available with <a href="http://www.videowhisper.com/?p=Wowza+Media+Server+Hosting">Wowza Hosting</a> .
-<BR>Transcoding is not required when stream is already broadcast with external encoders in appropriate formats (H264, AAC with supported settings).
 
 <h4>Always do RTMP Streaming (required for Transcoding)</h4>
 <p>Enable this if you want all streams to be published to server, no matter if there are registered subscribers or not. Stream on server is required for transcoding to start.</p>
@@ -3613,22 +3809,13 @@ Options for premium channels. Premium channels have special settings and feature
   <option value="0" <?php echo $options['alwaysRTMP']?"":"selected"?>>No</option>
   <option value="1" <?php echo $options['alwaysRTMP']?"selected":""?>>Yes</option>
 </select>
+*/
+?>
 
-
-<h4>Maximum Broadcating Time (0 = unlimited)</h4>
-<input name="pBroadcastTime" type="text" id="pBroadcastTime" size="7" maxlength="7" value="<?php echo $options['pBroadcastTime']?>"/> (minutes/period)
-
-<h4>Maximum Channel Watch Time (total cumulated view time, 0 = unlimited)</h4>
-<input name="pWatchTime" type="text" id="pWatchTime" size="10" maxlength="10" value="<?php echo $options['pWatchTime']?>"/> (minutes/period)
+<h3>Common Settings</h3>
 
 <h4>Usage Period Reset (same as for regular channels, 0 = never)</h4>
 <input name="timeReset" type="text" id="timeReset" size="4" maxlength="4" value="<?php echo $options['timeReset']?>"/> (days)
-
-<h4>Video Stream Bandwidth</h4>
-<input name="pCamBandwidth" type="text" id="pCamBandwidth" size="7" maxlength="7" value="<?php echo $options['pCamBandwidth']?>"/> (bytes/s)
-
-<h4>Maximum Video Stream Bandwidth (at runtime)</h4>
-<input name="pCamMaxBandwidth" type="text" id="pCamMaxBandwidth" size="7" maxlength="7" value="<?php echo $options['pCamMaxBandwidth']?>"/> (bytes/s)
 <?php
 				break;
 			case 'features':
@@ -3636,9 +3823,9 @@ Options for premium channels. Premium channels have special settings and feature
 				//! Channel Features
 ?>
 <h3>Channel Features</h3>
-Enable channel features, by owner.
+Enable channel features, accessible by owner (broadcaster).
 <br>Specify comma separated list of user roles, emails, logins able to setup these features for their channels.
-<br>Use All to enable for everybody (default) and None or blank to disable.
+<br>Use All to enable for everybody and None or blank to disable.
 <?php
 
 				$features = VWliveStreaming::roomFeatures();
@@ -3646,8 +3833,7 @@ Enable channel features, by owner.
 				foreach ($features as $key=>$feature) if ($feature['installed'])
 					{
 						echo '<h3>' . $feature['name'] . '</h3>';
-						echo '<textarea name="'.$key.'" cols="64" rows="2" id="'.$key.'">'.$options[$key].'
-</textarea>';
+						echo '<textarea name="'.$key.'" cols="64" rows="2" id="'.$key.'">' . trim($options[$key]) . '</textarea>';
 						echo '<br>' . $feature['description'];
 					}
 
@@ -3911,8 +4097,47 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 		}
 
-		//! Ajax App Calls
+		function premiumOptions($userkeys, $options)
+		{
 
+			$premiumLev = unserialize($options['premiumLevels']);
+
+			if ($options['premiumLevelsNumber'])
+				for ($i= ($options['premiumLevelsNumber']-1) ; $i >= 0 ; $i--)
+				if ($premiumLev[$i]['premiumList'])
+					if (VWliveStreaming::inList($userkeys, $premiumLev[$i]['premiumList'])) return $premiumLev[$i];
+
+					//not found
+					return false;
+		}
+
+		function channelOptions($type, $options)
+		{
+			$premiumLev = unserialize($options['premiumLevels']);
+
+			$i = $type-2;
+			if ($premiumLev[$i]) return $premiumLev[$i];
+
+			//regular channel
+			return $options;
+		}
+
+		/*
+		function premiumLevel($userkeys, $options)
+		{
+
+			$premiumLev = unserialize($options['premiumLevels']);
+
+			if ($options['premiumLevelsNumber'])
+				for ($i=$options['premiumLevelsNumber'] - 1 ; $i >= 0 ; $i--)
+				if ($premiumLev[$i]['premiumList'])
+					if (!VWliveStreaming::inList($userkeys, $premiumLev[$i]['premiumList'])) return ($i+1);
+
+			return 0;
+		}
+*/
+
+		//! Ajax App Calls
 		function vwls_calls()
 		{
 			function sanV(&$var, $file=1, $html=1, $mysql=1) //sanitize variable depending on use
@@ -4208,6 +4433,9 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 			case 'vv_login':
 
+				//! vv_login - live_video.swf
+				//live_video.swf - plain video interface login
+
 				$options = get_option('VWliveStreamingOptions');
 				$rtmp_server = $options['rtmp_server'];
 				$rtmp_amf = $options['rtmp_amf'];
@@ -4267,12 +4495,13 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 					if ($channel->type>=2) //premium
 						{
-						if (!$options['pLogo']) $options['overLogo']=$options['overLink']='';
-						$canWatch = $options['canWatchPremium'];
-						$watchList = $options['watchPremium'];
+
+						$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+
+						$canWatch = $poptions['canWatchPremium'];
+						$watchList = $poptions['watchListPremium'];
 						$msgp = urlencode(" This is a premium channel.");
 					}
-
 
 					switch ($canWatch)
 					{
@@ -4296,6 +4525,47 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 							break;
 					}
 
+					//channel features
+					if ($loggedin) $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $roomName . "' and post_type='channel' LIMIT 0,1" );
+
+					if ($postID)
+					{
+						$accessList = get_post_meta($postID, 'vw_accessList', true);
+						if ($accessList) if (!VWliveStreaming::inList($userkeys, $accessList))
+							{
+								$loggedin = 0;
+								$msg .= urlencode("<a href=\"/\">You are not in channel access list.</a>");
+							}
+
+						$vw_logo = get_post_meta( $postID, 'vw_logo', true );
+						if (!$vw_logo) $vw_logo = 'global';
+
+						switch ($vw_logo)
+						{
+						case 'global':
+							$overLogo = $options['overLogo'];
+							$overLink = $options['overLink'];
+							break;
+
+						case 'hide':
+							$overLogo = '';
+							$overLink = '';
+							break;
+
+						case 'custom':
+							$overLogo = get_post_meta( $postID, 'vw_logoImage', true );
+							$overLink = get_post_meta( $postID, 'vw_logoLink', true );
+							break;
+						}
+					}
+					else
+					{
+						$overLogo = $options['overLogo'];
+						$overLink = $options['overLink'];
+					}
+
+
+
 				}
 
 				$s = $username;
@@ -4312,11 +4582,12 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 				?>firstParameter=fix&server=<?php echo $rtmp_server?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&serverRTMFP=<?php echo urlencode($serverRTMFP)?>&p2pGroup=<?php echo
 				$p2pGroup?>&supportRTMP=<?php echo $supportRTMP?>&supportP2P=<?php echo $supportP2P?>&alwaysRTMP=<?php echo $alwaysRTMP?>&alwaysP2P=<?php echo $alwaysP2P?>&disableBandwidthDetection=<?php echo
 				$disableBandwidthDetection?>&username=<?php echo $username?>&userType=<?php echo $userType?>&msg=<?php echo $msg?>&loggedin=<?php echo
-				$loggedin?>&visitor=<?php echo $visitor?>&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo
-				urlencode($options['overLink']); echo $parameters; ?>&loadstatus=1&debug=<?php echo $debug;  ?><?php
+				$loggedin?>&visitor=<?php echo $visitor?>&overLogo=<?php echo urlencode($overLogo)?>&overLink=<?php echo
+				urlencode($overLink); echo $parameters; ?>&loadstatus=1&debug=<?php echo $debug;  ?><?php
 				break;
 
 			case 'vs_login':
+				//! vs_login - live_watch.swf
 
 				//vs_login.php controls watch interface (video & chat & user list) login
 
@@ -4382,9 +4653,10 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 					if ($channel->type>=2) //premium
 						{
-						if (!$options['pLogo']) $options['overLogo']=$options['overLink']='';
-						$canWatch = $options['canWatchPremium'];
-						$watchList = $options['watchPremium'];
+						$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+
+						$canWatch = $poptions['canWatchPremium'];
+						$watchList = $poptions['watchListPremium'];
 						$msgp = urlencode(" This is a premium channel.");
 					}
 
@@ -4411,6 +4683,67 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 							break;
 					}
 
+					//channel features
+					if ($loggedin) $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $roomName . "' and post_type='channel' LIMIT 0,1" );
+
+					if ($postID)
+					{
+						$accessList = get_post_meta($postID, 'vw_accessList', true);
+						if ($accessList) if (!VWliveStreaming::inList($userkeys, $accessList))
+							{
+								$loggedin = 0;
+								$msg .= urlencode("<a href=\"/\">You are not in channel access list.</a>");
+							}
+
+						$vw_logo = get_post_meta( $postID, 'vw_logo', true );
+						if (!$vw_logo) $vw_logo = 'global';
+
+						switch ($vw_logo)
+						{
+						case 'global':
+							$overLogo = $options['overLogo'];
+							$overLink = $options['overLink'];
+							break;
+
+						case 'hide':
+							$overLogo = '';
+							$overLink = '';
+							break;
+
+						case 'custom':
+							$overLogo = get_post_meta( $postID, 'vw_logoImage', true );
+							$overLink = get_post_meta( $postID, 'vw_logoLink', true );
+							break;
+						}
+
+						$vw_ads = get_post_meta( $postID, 'vw_ads', true );
+						if (!$vw_ads) $vw_ads = 'global';
+
+						switch ($vw_ads)
+						{
+						case 'global':
+							$adsServer =$options['adServer'];
+							break;
+
+						case 'hide':
+							$adsServer = '';
+
+							break;
+
+						case 'custom':
+							$adsServer = get_post_meta( $postID, 'vw_adsServer', true );
+							break;
+						}
+
+					}
+					else
+					{
+						$overLogo = $options['overLogo'];
+						$overLink = $options['overLink'];
+						$adsServer =$options['adServer'];
+					}
+
+
 				}
 
 				$s = $username;
@@ -4436,13 +4769,13 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 				?>firstParameter=fix&server=<?php echo $rtmp_server?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&serverRTMFP=<?php echo urlencode($serverRTMFP)?>&p2pGroup=<?php echo
 				$p2pGroup?>&supportRTMP=<?php echo $supportRTMP?>&supportP2P=<?php echo $supportP2P?>&alwaysRTMP=<?php echo $alwaysRTMP?>&alwaysP2P=<?php echo $alwaysP2P?>&disableBandwidthDetection=<?php echo
 				$disableBandwidthDetection?>&welcome=<?php echo urlencode($welcome)?>&username=<?php echo $username?>&userType=<?php echo $userType?>&msg=<?php echo $msg?>&loggedin=<?php
-				echo $loggedin?>&visitor=<?php echo $visitor?>&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo
-				urlencode($options['overLink'])?>&layoutCode=<?php echo urlencode($layoutCode)?>&filterRegex=<?php echo $filterRegex?>&filterReplace=<?php
-				echo $filterReplace?>&ws_ads=<?php echo urlencode($options['adServer']); ?>&adsInterval=<?php echo $options['adsInterval']; echo $parameters; ?>&loadstatus=1<?php
+				echo $loggedin?>&visitor=<?php echo $visitor?>&overLogo=<?php echo urlencode($overLogo)?>&overLink=<?php echo
+				urlencode($overLink)?>&layoutCode=<?php echo urlencode($layoutCode)?>&filterRegex=<?php echo $filterRegex?>&filterReplace=<?php
+				echo $filterReplace?>&ws_ads=<?php echo urlencode($adsServer); ?>&adsInterval=<?php echo $options['adsInterval']; echo $parameters; ?>&loadstatus=1<?php
 				break;
 
 			case 'vc_login':
-
+				//! vc_login - live_broadcast.swf
 				$options = get_option('VWliveStreamingOptions');
 
 				$rtmp_server = $options['rtmp_server'];
@@ -4474,6 +4807,21 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 				if ($current_user->$userName) $username=urlencode($current_user->$userName);
 				sanV($username);
 
+
+				//broadcaster room
+				$userlabel="";
+				$room_name=$_GET['room_name'];
+				sanV($room_name);
+
+				if ($room_name&&$room_name!=$username)
+				{
+					$userlabel=$username;
+					$username=$room_name;
+					$room=$room_name;
+				}
+
+				if (!$room) $room = $username;
+
 				//access keys
 				if ($current_user)
 				{
@@ -4498,19 +4846,40 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 						break;
 				}
 
-				//broadcaster
-				$userlabel="";
-				$room_name=$_GET['room_name'];
-				sanV($room_name);
+				//channel features
+				if ($loggedin) $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $room . "' and post_type='channel' LIMIT 0,1" );
 
-				if ($room_name&&$room_name!=$username)
+				if ($postID)
 				{
-					$userlabel=$username;
-					$username=$room_name;
-					$room=$room_name;
+					$vw_logo = get_post_meta( $postID, 'vw_logo', true );
+					if (!$vw_logo) $vw_logo = 'global';
+
+					switch ($vw_logo)
+					{
+					case 'global':
+						$overLogo = $options['overLogo'];
+						$overLink = $options['overLink'];
+						break;
+
+					case 'hide':
+						$overLogo = '';
+						$overLink = '';
+						break;
+
+					case 'custom':
+						$overLogo = get_post_meta( $postID, 'vw_logoImage', true );
+						$overLink = get_post_meta( $postID, 'vw_logoLink', true );
+						break;
+					}
+				}
+				else
+				{
+					$overLogo = $options['overLogo'];
+					$overLink = $options['overLink'];
 				}
 
-				if (!$room) $room = $username;
+
+				$debug = "$postID-$vw_logo";
 
 				if (!$room)
 				{
@@ -4535,13 +4904,15 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 					$ztime=time();
 
 					//setup/update channel, premium & time reset
-					if (VWliveStreaming::inList($userkeys, $options['premiumList'])) //premium room
-						{
-						$rtype=2;
-						$camBandwidth=$options['pCamBandwidth'];
-						$camMaxBandwidth=$options['pCamMaxBandwidth'];
-						if (!$options['pLogo']) $options['overLogo']=$options['overLink']='';
 
+					$poptions = VWliveStreaming::premiumOptions($userkeys, $options);
+
+					if ($poptions) //premium room
+						{
+						$rtype = 1 + $poptions['level'];
+						$camBandwidth = $poptions['pCamBandwidth'];
+						$camMaxBandwidth = $poptions['pCamMaxBandwidth'];
+						//if (!$options['pLogo']) $options['overLogo']=$options['overLink']='';
 					}else
 					{
 						$rtype=1;
@@ -4596,7 +4967,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 				?>firstParameter=fix&server=<?php echo $rtmp_server?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&serverRTMFP=<?php echo urlencode($serverRTMFP)?>&p2pGroup=<?php
 				echo $p2pGroup?>&supportRTMP=<?php echo $supportRTMP?>&supportP2P=<?php echo $supportP2P?>&alwaysRTMP=<?php echo $alwaysRTMP?>&alwaysP2P=<?php echo $alwaysP2P?>&disableBandwidthDetection=<?php echo
 				$disableBandwidthDetection?>&room=<?php echo $username?>&welcome=<?php echo urlencode($welcome); ?>&username=<?php echo $username?>&userlabel=<?php echo $userlabel?>&overLogo=<?php echo
-				urlencode($options['overLogo'])?>&overLink=<?php echo urlencode($options['overLink'])?>&userType=3&webserver=&msg=<?php echo $msg?>&loggedin=<?php echo $loggedin?>&linkcode=<?php echo
+				urlencode($overLogo)?>&overLink=<?php echo urlencode($overLink)?>&userType=3&webserver=&msg=<?php echo $msg?>&loggedin=<?php echo $loggedin?>&linkcode=<?php echo
 				urlencode($linkcode)?>&embedcode=<?php echo urlencode($embedcode)?>&embedvcode=<?php echo urlencode($embedvcode)?>&imagecode=<?php echo
 				urlencode($imagecode)?>&camWidth=<?php echo $camRes[0];?>&camHeight=<?php echo $camRes[1];?>&camFPS=<?php echo
 				$options['camFPS']?>&camBandwidth=<?php echo $camBandwidth?>&videoCodec=<?php echo $options['videoCodec']?>&codecProfile=<?php echo $options['codecProfile']?>&codecLevel=<?php echo
@@ -4727,8 +5098,10 @@ lt=last session time received from this script in (milliseconds)
 
 					if ($channel->type>=2) //premium
 						{
-						$maximumBroadcastTime =  60 * $options['pBroadcastTime'];
-						$maximumWatchTime =  60 * $options['pWatchTime'];
+						$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+
+						$maximumBroadcastTime =  60 * $poptions['pBroadcastTime'];
+						$maximumWatchTime =  60 * $poptions['pWatchTime'];
 					}
 					else
 					{
@@ -4877,8 +5250,10 @@ lt=last session time received from this script in (milliseconds)
 
 							if ($channel->type>=2) //premium
 								{
-								$maximumBroadcastTime =  60 * $options['pBroadcastTime'];
-								$maximumWatchTime =  60 * $options['pWatchTime'];
+								$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+
+								$maximumBroadcastTime =  60 * $poptions['pBroadcastTime'];
+								$maximumWatchTime =  60 * $poptions['pWatchTime'];
 							}
 							else
 							{
@@ -4954,8 +5329,10 @@ lt=last session time received from this script in (milliseconds)
 
 							if ($channel->type>=2) //premium
 								{
-								$maximumBroadcastTime =  60 * $options['pBroadcastTime'];
-								$maximumWatchTime =  60 * $options['pWatchTime'];
+								$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+
+								$maximumBroadcastTime =  60 * $poptions['pBroadcastTime'];
+								$maximumWatchTime =  60 * $poptions['pWatchTime'];
 							}
 							else
 							{
@@ -5108,7 +5485,7 @@ lt=last session time received from this script in (milliseconds)
 				break;
 
 			case 'lb_status':
-
+				//! lb_status
 				/*
 Broadcaster status updates.
 
@@ -5190,8 +5567,10 @@ cam, mic = 0 none, 1 disabled, 2 enabled
 
 					if ($channel->type>=2) //premium
 						{
-						$maximumBroadcastTime =  60 * $options['pBroadcastTime'];
-						$maximumWatchTime =  60 * $options['pWatchTime'];
+						$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+
+						$maximumBroadcastTime =  60 * $poptions['pBroadcastTime'];
+						$maximumWatchTime =  60 * $poptions['pWatchTime'];
 					}
 					else
 					{

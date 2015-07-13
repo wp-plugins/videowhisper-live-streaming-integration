@@ -24,7 +24,7 @@ VideoWhisper Live Streaming plugin allows site users and admins to broadcast liv
 * automated detection of iOS
 * usage permissions by role, email, id, name
 * limit broadcasting and watch time per channel
-* premium channels
+* premium channels (unlimited levels)
 * channel stats (broadcast/watch time, last activity)
 * P2P groups support for better, faster video streaming and lower rtmp server bandwidth usage
 * external broadcaster/player support with special RTMP side (Wirecast, Flash Media Live Encoder, Open Broadcaster Software, iOS GoCoder app)
@@ -32,6 +32,7 @@ VideoWhisper Live Streaming plugin allows site users and admins to broadcast liv
 * video archive support with [Video Share VOD](http://wordpress.org/plugins/video-share-vod/  "Video Share / Video On Demand") WordPress Plugin
 * paid channel support with myCRED integration (owner sets price)
 * channel access list (owner sets list of user roles, logins, emails)
+* custom floating logo, ads
 
 For more details see the [WordPress Live Video Streaming](http://www.videowhisper.com/?p=WordPress+Live+Streaming "WordPress Live Video Streaming") Plugin Homepage ...
 
@@ -95,6 +96,14 @@ Resulting videos can be managed and imported with [Video Share VOD](http://wordp
 More information, the latest updates, other plugins and non-WordPress editions can be found at http://www.videowhisper.com/ .
 
 == Changelog ==
+
+= 4.32.37 =
+* Unlimited premium channel levels
+* Feature control by user roles/lists:
+** custom/hide logo
+** custom/hide ads
+** transcode
+
 
 = 4.32.21 =
 * myCRED integration: allow selling access to channels
