@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.37
+Version: 4.32.38
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -340,7 +340,7 @@ if (!class_exists("VWliveStreaming"))
 
 			if ($channelR->type >=2) //premium
 				{
-				$poptions = VWliveStreaming::typeOptions($channelR->type, $options);
+				$poptions = VWliveStreaming::channelOptions($channelR->type, $options);
 
 				$maximumBroadcastTime =  60 * $poptions['pBroadcastTime'];
 				$maximumWatchTime =  60 * $poptions['pWatchTime'];
@@ -4496,7 +4496,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 					if ($channel->type>=2) //premium
 						{
 
-						$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+						$poptions = VWliveStreaming::channelOptions($channel->type, $options);
 
 						$canWatch = $poptions['canWatchPremium'];
 						$watchList = $poptions['watchListPremium'];
@@ -4653,7 +4653,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 					if ($channel->type>=2) //premium
 						{
-						$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+						$poptions = VWliveStreaming::channelOptions($channel->type, $options);
 
 						$canWatch = $poptions['canWatchPremium'];
 						$watchList = $poptions['watchListPremium'];
@@ -5098,7 +5098,7 @@ lt=last session time received from this script in (milliseconds)
 
 					if ($channel->type>=2) //premium
 						{
-						$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+						$poptions = VWliveStreaming::channelOptions($channel->type, $options);
 
 						$maximumBroadcastTime =  60 * $poptions['pBroadcastTime'];
 						$maximumWatchTime =  60 * $poptions['pWatchTime'];
@@ -5250,7 +5250,7 @@ lt=last session time received from this script in (milliseconds)
 
 							if ($channel->type>=2) //premium
 								{
-								$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+								$poptions = VWliveStreaming::channelOptions($channel->type, $options);
 
 								$maximumBroadcastTime =  60 * $poptions['pBroadcastTime'];
 								$maximumWatchTime =  60 * $poptions['pWatchTime'];
@@ -5329,7 +5329,7 @@ lt=last session time received from this script in (milliseconds)
 
 							if ($channel->type>=2) //premium
 								{
-								$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+								$poptions = VWliveStreaming::channelOptions($channel->type, $options);
 
 								$maximumBroadcastTime =  60 * $poptions['pBroadcastTime'];
 								$maximumWatchTime =  60 * $poptions['pWatchTime'];
@@ -5567,7 +5567,7 @@ cam, mic = 0 none, 1 disabled, 2 enabled
 
 					if ($channel->type>=2) //premium
 						{
-						$poptions = VWliveStreaming::typeOptions($channel->type, $options);
+						$poptions = VWliveStreaming::channelOptions($channel->type, $options);
 
 						$maximumBroadcastTime =  60 * $poptions['pBroadcastTime'];
 						$maximumWatchTime =  60 * $poptions['pWatchTime'];
