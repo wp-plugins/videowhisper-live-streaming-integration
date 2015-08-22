@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.38
+Version: 4.32.39
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -277,7 +277,7 @@ if (!class_exists("VWliveStreaming"))
 		{
 			global $wpdb;
 
-			$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . sanitize_file_name($room) . "' and post_type='channel' LIMIT 0,1" );
+			$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . sanitize_file_name($room) . "' and post_type='channel' LIMIT 0,1" );
 
 			if ($postID) return get_post_permalink($postID);
 			else return plugin_dir_url(__FILE__) . 'ls/channel.php?n=' . urlencode(sanitize_file_name($room));
@@ -402,7 +402,7 @@ if (!class_exists("VWliveStreaming"))
 
 
 
-			$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $channel . "' and post_type='channel' LIMIT 0,1" );
+			$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $channel . "' and post_type='channel' LIMIT 0,1" );
 
 			if ($postID)    //post validations
 				{
@@ -494,7 +494,9 @@ if (!class_exists("VWliveStreaming"))
 					$name = sanitize_file_name($_POST['newname']);
 					//$name = preg_replace("/[^\s\w]+/", '', $name);
 
-					$comments = sanitize_file_name($_POST['newcomments']);
+					if ($_POST['ipCamera']) if (!strstr($name,'.stream')) $name .= '.stream';
+
+						$comments = sanitize_file_name($_POST['newcomments']);
 
 					$post = array(
 						'post_content'   => sanitize_text_field($_POST['description']),
@@ -511,7 +513,7 @@ if (!class_exists("VWliveStreaming"))
 					if ($postID>0)
 					{
 						$channel = get_post( $postID );
-						if ($channel->post_author == $current_user->ID)                    $post['ID'] = $postID;
+						if ($channel->post_author == $current_user->ID) $post['ID'] = $postID; //update
 						else return "<div class='error'>Not allowed!</div>";
 						$htmlCode .= "<div class='update'>Channel $name was updated!</div>";
 					}
@@ -558,6 +560,67 @@ if (!class_exists("VWliveStreaming"))
 						update_post_meta($postID, 'vw_adsServer', $logoImage);
 
 						update_post_meta($postID, 'vw_ads', 'custom');
+					}
+
+					//ipCameras
+					if (VWliveStreaming::inList($userkeys, $options['ipCameras']))
+					{
+						if (file_exists($options['streamsPath']))
+						{
+							$ipCamera = sanitize_text_field($_POST['ipCamera']);
+
+
+							if ($ipCamera)
+							{
+								list($firstWord) = explode(':', $ipCamera);
+								if (!in_array($firstWord, array('rtsp','udp','rtmp','rtmps','wowz','wowzs')))
+								{
+									$htmlCode .= "<BR>Address format not supported ($firstWord). Address should use one of these protocols: rtsp://, udp://, rtmp://, rtmps://, wowz://, wowzs:// !";
+									$ipCamera = '';
+
+								}
+							}
+
+							if ($ipCamera)  if (!strstr($name,'.stream'))
+								{
+									$htmlCode .= "<BR>Channel name must end in .stream when re-streaming!";
+									$ipCamera = '';
+								}
+
+							$file = $options['streamsPath'] . '/' . $name;
+
+							if ($ipCamera)
+							{
+
+								$myfile = fopen($file, "w");
+								if ($myfile)
+								{
+									fwrite($myfile, $ipCamera);
+									fclose($myfile);
+									$htmlCode .= '<BR>Stream file created/updated:<br>' . $name . ' = ' . $ipCamera;
+								}
+								else
+								{
+									$htmlCode .= '<BR>Could not write file: '. $file;
+									$ipCamera = '';
+								}
+
+							}
+							else
+							{
+								if (file_exists($file))
+								{
+									unlink($file);
+									$htmlCode .= '<BR>Stream file removed: '. $file;
+								}
+							}
+
+							update_post_meta($postID, 'vw_ipCamera', $ipCamera);
+						}
+						else
+						{
+							$htmlCode .= '<BR>Stream file could not be setup. Streams folder not found: '. $options['streamsPath'];
+						}
 					}
 
 					//accessList
@@ -663,6 +726,12 @@ if (!class_exists("VWliveStreaming"))
 						$dir = $options['uploadsPath']. "/_snapshots";
 						$thumbFilename = "$dir/$stream.jpg";
 
+						if (get_post_meta( $postID, 'vw_ipCamera', true )) //ip camera - update snapshot
+							{
+								VWliveStreaming::streamSnapshot($stream, true);
+							}
+
+
 						//only if image exits
 						if ( file_exists($thumbFilename))
 						{
@@ -705,6 +774,7 @@ if (!class_exists("VWliveStreaming"))
 						$htmlCode .= '<br> Logo: ' . get_post_meta( $postID, 'vw_logo', true );
 						$htmlCode .= '<br> Ads: ' . get_post_meta( $postID, 'vw_ads', true );
 
+						if (get_post_meta( $postID, 'vw_ipCamera', true )) $htmlCode .= '<br>IP Camera';
 
 
 
@@ -807,6 +877,18 @@ if (!class_exists("VWliveStreaming"))
 
 				$extraRows .= '<tr><td>Logo Link</td><td><input size=64 name="logoLink" id="logoImage" value="' . $value . '"><BR>URL to link from logo.</td></tr>';
 			}
+
+
+			//ipCameras
+			if (VWliveStreaming::inList($userkeys, $options['ipCameras']))
+			{
+				if ($editPost>0) $value = get_post_meta( $editPost, 'vw_ipCamera', true );
+				else $value = '';
+
+				$extraRows .= '<tr><td>IP Camera Stream</td><td><input size=64 name="ipCamera" id="ipCamera" value="' . $value . '"><BR>Insert address exactly as it works in <a target="_blank" href="http://www.videolan.org/vlc/index.html">VLC</a> or other player. For increased playback support, H264 video with AAC audio encoded streams should be used. Address should use one of these protocols: rtsp://, udp://, rtmp://, rtmps://, wowz://, wowzs:// .</td></tr>';
+			}
+
+
 
 			//adsCustom
 			if (VWliveStreaming::inList($userkeys, $options['adsCustom']))
@@ -939,6 +1021,8 @@ HTMLCODE;
 		{
 			$stream = sanitize_file_name($stream);
 
+			$streamLabel = preg_replace('/[^A-Za-z0-9\-\_]/', '', $stream);
+
 			$swfurl = plugin_dir_url(__FILE__) . "ls/live_watch.swf?n=" . urlencode($stream);
 			$swfurl .= "&prefix=" . urlencode(admin_url() . 'admin-ajax.php?action=vwls&task=');
 			$swfurl .= '&extension='.urlencode('_none_');
@@ -947,8 +1031,8 @@ HTMLCODE;
 			$bgcolor="#333333";
 
 			$htmlCode = <<<HTMLCODE
-<div id="videowhisper_container_$stream">
-<object id="videowhisper_watch_$stream" width="100%" height="100%" type="application/x-shockwave-flash" data="$swfurl">
+<div id="videowhisper_container_$streamLabel">
+<object id="videowhisper_watch_$streamLabel" width="100%" height="100%" type="application/x-shockwave-flash" data="$swfurl">
 <param name="movie" value="$swfurl"></param><param bgcolor="$bgcolor"><param name="scale" value="noscale" /> </param><param name="salign" value="lt"></param><param name="allowFullScreen"
 value="true"></param><param name="allowscriptaccess" value="always"></param>
 </object>
@@ -991,13 +1075,16 @@ HTMLCODE;
 			$options = get_option('VWliveStreamingOptions');
 			$watchStyle = html_entity_decode($options['watchStyle']);
 
+			$streamLabel = preg_replace('/[^A-Za-z0-9\-\_]/', '', $stream);
+
+
 			$afterCode = <<<HTMLCODE
 <br style="clear:both" />
 
 <style type="text/css">
 <!--
 
-#videowhisper_container_$stream
+#videowhisper_container_$streamLabel
 {
 $watchStyle
 }
@@ -1775,7 +1862,7 @@ BODY
 					get_currentuserinfo();
 
 					global $wpdb;
-					$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . sanitize_file_name($stream) . "' and post_type='channel' LIMIT 0,1" );
+					$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . sanitize_file_name($stream) . "' and post_type='channel' LIMIT 0,1" );
 
 					if ($options['externalKeysTranscoder'])
 					{
@@ -1930,7 +2017,7 @@ a {
 					$count =  $wpdb->get_results("SELECT count(*) as no FROM `$table_name2` where status='1' and type='1' and room='".$item->room."'");
 
 
-					$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $item->room . "' and post_type='channel' LIMIT 0,1" );
+					$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $item->room . "' and post_type='channel' LIMIT 0,1" );
 					if ($postID) $url = get_post_permalink($postID);
 					else $url = plugin_dir_url(__FILE__) . 'ls/channel.php?n=' . urlencode($item->name);
 
@@ -1985,7 +2072,7 @@ Streaming Software</a>.</p></div>';
 				{
 					$count =  $wpdb->get_results("SELECT count(id) as no FROM `$table_name2` where status='1' and type='1' and room='".$item->room."'");
 
-					$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $item->room . "' and post_type='channel' LIMIT 0,1" );
+					$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $item->room . "' and post_type='channel' LIMIT 0,1" );
 					if ($postID) $url = get_post_permalink($postID);
 					else $url = plugin_dir_url(__FILE__) . 'ls/channel.php?n=' . urlencode($item->name);
 
@@ -2058,6 +2145,9 @@ Software</a>.</p></div>';
 
 			if (get_post_type( $postID ) != 'channel') return $content;
 
+//			global $wpdb;
+//			$stream = $wpdb->get_var( "SELECT post_name FROM $wpdb->posts WHERE ID = '" . $postID . "' and post_type='channel' LIMIT 0,1" );
+
 			$stream = sanitize_file_name(get_the_title($postID));
 
 			global $wp_query;
@@ -2085,6 +2175,12 @@ Software</a>.</p></div>';
 			{
 				if (! $addCode = VWliveStreaming::channelInvalid($stream))
 					$addCode = "" . '[videowhisper_watch]';
+			}
+
+
+			if (get_post_meta( $postID, 'vw_ipCamera', true )) //ip camera - update snapshot
+			{
+				VWliveStreaming::streamSnapshot($stream, true);
 			}
 
 			//set thumb
@@ -2174,7 +2270,7 @@ Software</a>.</p></div>';
 			{
 
 				global $wpdb;
-				$postName = $wpdb->get_var( "SELECT post_name FROM $wpdb->posts WHERE ID = '" . $post_id . "' and post_type='channel' LIMIT 0,1" );
+				$postName = $wpdb->get_var( "SELECT post_title FROM $wpdb->posts WHERE ID = '" . $post_id . "' and post_type='channel' LIMIT 0,1" );
 
 				if ($postName)
 				{
@@ -2702,7 +2798,7 @@ Software</a>.</p></div>';
 					{
 
 						global $wpdb;
-						$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $item->name . "' and post_type='channel' LIMIT 0,1" );
+						$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $item->name . "' and post_type='channel' LIMIT 0,1" );
 						if (!$postID)
 						{
 							$wpdb->query( "DELETE FROM `$table_name3` WHERE name ='".$item->name."'");
@@ -2761,7 +2857,7 @@ Software</a>.</p></div>';
 				global $wpdb;
 
 				//delete post
-				$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $ban . "' and post_type='channel' LIMIT 0,1" );
+				$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $ban . "' and post_type='channel' LIMIT 0,1" );
 				if (!$postID) echo "<br>Channel post '$ban' not found!";
 				else
 				{
@@ -2902,11 +2998,16 @@ align="absmiddle" border="0">Start Broadcasting</a>
 					'description' =>'Hides ads from channel.',
 					'installed' => 1,
 					'default' => 'Super Admin, Administrator, Editor'),
+				'ipCameras' => array(
+					'name'=>'IP Cameras',
+					'description' =>'Can configure re-streaming, including for IP cameras.',
+					'installed' => 1,
+					'default' => 'None'),
 				'adsCustom' => array(
 					'name'=>'Custom Ads',
 					'description' =>'Can setup a custom ad server. Overrides hide ads feature.',
 					'installed' => 1,
-					'default' => 'Super Admin, Administrator'),
+					'default' => 'None'),
 				'transcode' => array(
 					'name'=>'Transcode',
 					'description' =>'Shows transcoding interface with web broadcasting interface.',
@@ -2959,6 +3060,7 @@ align="absmiddle" border="0">Start Broadcasting</a>
 				'httpstreamer' => 'http://localhost:1935/videowhisper-x/',
 				'ffmpegPath' => '/usr/local/bin/ffmpeg',
 				'ffmpegTranscode' => '-analyzeduration 0 -vcodec copy -acodec libfaac -ac 2 -ar 22050 -ab 96k',
+				'streamsPath' => '/home/account/public_html/streams',
 
 				'canBroadcast' => 'members',
 				'broadcastList' => 'Super Admin, Administrator, Editor, Author',
@@ -3485,6 +3587,15 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 <BR>Ex.(transcode video+audio): -vcodec libx264 -s 480x360 -r 15 -vb 512k -x264opts vbv-maxrate=364:qpmin=4:ref=4 -coder 0 -bf 0 -analyzeduration 0 -level 3.1 -g 30 -maxrate 768k -acodec libfaac -ac 2 -ar 22050 -ab 96k
 <BR>For advanced settings see <a href="https://developer.apple.com/library/ios/technotes/tn2224/_index.html#//apple_ref/doc/uid/DTS40009745-CH1-SETTINGSFILES">iOS HLS Supported Codecs<a> and <a href="https://trac.ffmpeg.org/wiki/Encode/AAC">FFMPEG AAC Encoding Guide</a>.
 
+<h4>Streams Path (IP Camera Streams)</h4>
+<input name="streamsPath" type="text" id="streamsPath" size="100" maxlength="256" value="<?php echo $options['streamsPath']?>"/>
+<BR>Path to .stream files monitored by streaming server for restreaming. This requires Wowza Streaming Engine 4.2+ and specific setup.
+<BR> <?php
+				echo $options['streamsPath'] . ' : ';
+				if (file_exists($options['streamsPath'])) echo 'Found.';
+				else echo 'NOT found!';
+?>
+
 <h4>Disable Bandwidth Detection</h4>
 <p>Required on some rtmp servers that don't support bandwidth detection and return a Connection.Call.Fail error.</p>
 <select name="disableBandwidthDetection" id="disableBandwidthDetection">
@@ -3498,7 +3609,7 @@ This is used for accessing transcoded streams on HLS playback. Usually available
 
 <h4>Web Key</h4>
 <input name="webKey" type="text" id="webKey" size="32" maxlength="64" value="<?php echo $options['webKey']?>"/>
-<BR>A web key can be used for <a href="http://www.videochat-scripts.com/videowhisper-rtmp-web-authetication-check/">VideoWhisper RTMP Web Session Check</a>.
+<BR>A web key can be used for <a href="http://www.videochat-scripts.com/videowhisper-rtmp-web-authetication-check/">VideoWhisper RTMP Web Session Check</a>. Configure as documented on <a href="http://www.videowhisper.com/?p=RTMP-Session-Control#configure">RTMP Session Control Configuration</a>.
 <?php
 				$admin_ajax = admin_url() . 'admin-ajax.php';
 
@@ -3988,7 +4099,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 			if ($broadcaster)
 			{
-				$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $room . "' and post_type='channel' LIMIT 0,1" );
+				$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $room . "' and post_type='channel' LIMIT 0,1" );
 				if ($postID) update_post_meta($postID, 'edate', $ztime);
 			}
 
@@ -4027,8 +4138,12 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 		}
 
-		function rtmpSnapshot($session)
+		function streamSnapshot($stream, $ipcam = false)
 		{
+			$stream = sanitize_file_name($stream);
+			if (strstr($stream,'.php')) return;
+			if (!$stream) return;
+
 			$options = get_option('VWliveStreamingOptions');
 
 			$dir=$options['uploadsPath'];
@@ -4036,18 +4151,13 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 			$dir .= "/_snapshots";
 			if (!file_exists($dir)) mkdir($dir);
 
-			$stream = $session->session;
-			$stream = sanitize_file_name($stream);
-			if (strstr($stream,'.php')) return;
-			if (!$stream) return;
-
 			$filename = "$dir/$stream.jpg";
 			if (file_exists($filename)) if (time()-filemtime($filename) < 15) return; //do not update if fresh
 
-				$log_file = $filename . '.txt';
+			$log_file = $filename . '.txt';
 
 			global $wpdb;
-			$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $stream . "' and post_type='channel' LIMIT 0,1" );
+			$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $stream . "' and post_type='channel' LIMIT 0,1" );
 
 			if ($options['externalKeysTranscoder'])
 			{
@@ -4064,6 +4174,9 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 			//failed
 			if (!file_exists($filename)) return;
+
+			//if snapshot successful update edate
+			if ($ipcam) update_post_meta($postID, 'edate', time());
 
 			//generate thumb
 			$thumbWidth = $options['thumbWidth'];
@@ -4091,10 +4204,14 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 			$wpdb->query($sql);
 
 			//update post meta
-			$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . sanitize_file_name($stream) . "' and post_type='channel' LIMIT 0,1" );
 			if ($postID) update_post_meta($postID, 'hasSnapshot', $picType);
 
+		}
 
+		function rtmpSnapshot($session)
+		{
+
+			VWliveStreaming::streamSnapshot($session->session);
 		}
 
 		function premiumOptions($userkeys, $options)
@@ -4221,7 +4338,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 					$wpdb->query($sql);
 
 					//update post meta
-					$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . sanitize_file_name($stream) . "' and post_type='channel' LIMIT 0,1" );
+					$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . sanitize_file_name($stream) . "' and post_type='channel' LIMIT 0,1" );
 					if ($postID) update_post_meta($postID, 'hasSnapshot', $picType);
 
 				}
@@ -4526,7 +4643,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 					}
 
 					//channel features
-					if ($loggedin) $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $roomName . "' and post_type='channel' LIMIT 0,1" );
+					if ($loggedin) $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $roomName . "' and post_type='channel' LIMIT 0,1" );
 
 					if ($postID)
 					{
@@ -4684,7 +4801,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 					}
 
 					//channel features
-					if ($loggedin) $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $roomName . "' and post_type='channel' LIMIT 0,1" );
+					if ($loggedin) $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $roomName . "' and post_type='channel' LIMIT 0,1" );
 
 					if ($postID)
 					{
@@ -4847,7 +4964,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 				}
 
 				//channel features
-				if ($loggedin) $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $room . "' and post_type='channel' LIMIT 0,1" );
+				if ($loggedin) $postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $room . "' and post_type='channel' LIMIT 0,1" );
 
 				if ($postID)
 				{
@@ -5132,7 +5249,7 @@ lt=last session time received from this script in (milliseconds)
 						$wpdb->query($sql);
 
 						//update post
-						$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $r . "' and post_type='channel' LIMIT 0,1" );
+						$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $r . "' and post_type='channel' LIMIT 0,1" );
 						if ($postID)
 						{
 							update_post_meta($postID, 'wtime', $channel->wtime);
@@ -5224,7 +5341,7 @@ lt=last session time received from this script in (milliseconds)
 								$wpdb->query($sql);
 
 								//update post
-								$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $r . "' and post_type='channel' LIMIT 0,1" );
+								$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $r . "' and post_type='channel' LIMIT 0,1" );
 								if ($postID)
 								{
 									update_post_meta($postID, 'edate', $ztime);
@@ -5315,7 +5432,7 @@ lt=last session time received from this script in (milliseconds)
 								$wpdb->query($sql);
 
 								//update post
-								$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $r . "' and post_type='channel' LIMIT 0,1" );
+								$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $r . "' and post_type='channel' LIMIT 0,1" );
 								if ($postID)
 								{
 									update_post_meta($postID, 'wtime', $channel->wtime);
@@ -5420,7 +5537,7 @@ lt=last session time received from this script in (milliseconds)
 
 				global $wpdb;
 				$wpdb->flush();
-				$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . sanitize_file_name($channel) . "' and post_type='channel' LIMIT 0,1" );
+				$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . sanitize_file_name($channel) . "' and post_type='channel' LIMIT 0,1" );
 
 				$options = get_option('VWliveStreamingOptions');
 
@@ -5600,7 +5717,7 @@ cam, mic = 0 none, 1 disabled, 2 enabled
 						$wpdb->query($sql);
 
 						//update post
-						$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_name = '" . $r . "' and post_type='channel' LIMIT 0,1" );
+						$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $r . "' and post_type='channel' LIMIT 0,1" );
 						if ($postID)
 						{
 							update_post_meta($postID, 'edate', $ztime);
