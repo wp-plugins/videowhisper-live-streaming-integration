@@ -13,7 +13,7 @@ Stable tag: trunk
 The VideoWhisper Live Streaming software can easily be used to add video broadcasting features to WordPress sites and live video streams on blog pages and other sites. 
 
 == Description ==
-VideoWhisper Live Streaming plugin allows site users and admins to broadcast live streaming channels. 
+VideoWhisper Live Streaming plugin allows site users and admins to broadcast live streaming channels.
 
 = Key Features =
 * live video channels (custom post type)
@@ -32,7 +32,7 @@ VideoWhisper Live Streaming plugin allows site users and admins to broadcast liv
 * generate snapshots for external streams with special RTMP side
 * video archive support with [Video Share VOD](http://wordpress.org/plugins/video-share-vod/  "Video Share / Video On Demand") WordPress Plugin
 * paid channel support with myCRED integration (owner sets price)
-* channel access list (owner sets list of user roles, logins, emails)
+* channel password / access list (owner sets list of user roles, logins, emails)
 * custom floating logo, ads
 
 For more details see the [WordPress Live Video Streaming](http://www.videowhisper.com/?p=WordPress+Live+Streaming "WordPress Live Video Streaming") Plugin Homepage ...
@@ -97,6 +97,9 @@ Resulting videos can be managed and imported with [Video Share VOD](http://wordp
 More information, the latest updates, other plugins and non-WordPress editions can be found at http://www.videowhisper.com/ .
 
 == Changelog ==
+
+= 4.32.41=
+* Access Password
 
 = 4.32.37 =
 * Unlimited premium channel levels

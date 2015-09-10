@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.39
+Version: 4.32.41
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -41,8 +41,9 @@ if (!class_exists("VWliveStreaming"))
 			wp_register_sidebar_widget('liveStreamingWidget','VideoWhisper Streaming', array('VWliveStreaming', 'widget') );
 
 			//channel page
-			add_filter( "the_content", array('VWliveStreaming','channel_page'));
-			add_filter( 'query_vars', array('VWliveStreaming','channel_query_vars'));
+			add_filter('the_title', array('VWliveStreaming','the_title'));
+			add_filter('the_content', array('VWliveStreaming','channel_page'));
+			add_filter('query_vars', array('VWliveStreaming','channel_query_vars'));
 			add_filter('pre_get_posts', array('VWliveStreaming','pre_get_posts'));
 
 			//admin channels
@@ -406,6 +407,8 @@ if (!class_exists("VWliveStreaming"))
 
 			if ($postID)    //post validations
 				{
+				//accessPassword
+				if (post_password_required($postID)) return fm('Access to channel is restricted by password!');
 
 				// channel access list
 				$accessList = get_post_meta($postID, 'vw_accessList', true);
@@ -498,6 +501,14 @@ if (!class_exists("VWliveStreaming"))
 
 						$comments = sanitize_file_name($_POST['newcomments']);
 
+					//accessPassword
+					$accessPassword ='';
+					if (VWliveStreaming::inList($userkeys, $options['accessPassword']))
+					{
+						$accessPassword = sanitize_text_field($_POST['accessPassword']);
+					}
+
+
 					$post = array(
 						'post_content'   => sanitize_text_field($_POST['description']),
 						'post_name'      => $name,
@@ -506,6 +517,7 @@ if (!class_exists("VWliveStreaming"))
 						'post_type'      => 'channel',
 						'post_status'    => 'publish',
 						'comment_status' => $comments,
+						'post_password' => $accessPassword
 					);
 
 					$category = (int) $_POST['newcategory'];
@@ -575,7 +587,7 @@ if (!class_exists("VWliveStreaming"))
 								list($firstWord) = explode(':', $ipCamera);
 								if (!in_array($firstWord, array('rtsp','udp','rtmp','rtmps','wowz','wowzs')))
 								{
-									$htmlCode .= "<BR>Address format not supported ($firstWord). Address should use one of these protocols: rtsp://, udp://, rtmp://, rtmps://, wowz://, wowzs:// !";
+									$htmlCode .= "<BR>Address format not supported ($firstWord). Address should use one of these protocols: rtsp://, udp://, rtmp://, rtmps://, wowz://, wowzs:// .";
 									$ipCamera = '';
 
 								}
@@ -728,8 +740,8 @@ if (!class_exists("VWliveStreaming"))
 
 						if (get_post_meta( $postID, 'vw_ipCamera', true )) //ip camera - update snapshot
 							{
-								VWliveStreaming::streamSnapshot($stream, true);
-							}
+							VWliveStreaming::streamSnapshot($stream, true);
+						}
 
 
 						//only if image exits
@@ -799,7 +811,7 @@ if (!class_exists("VWliveStreaming"))
 				$htmlCode .= apply_filters("vw_ls_manage_channels_foot", '');
 			}
 
-			//! form
+			//! Form
 
 			//setup
 			$newCat = -1;
@@ -844,8 +856,17 @@ if (!class_exists("VWliveStreaming"))
 
 			$categories = wp_dropdown_categories('show_count=1&echo=0&name=newcategory&hide_empty=0&selected=' . $newCat);
 
-			//channel features
+			//! channel features
 			$extraRows = '';
+
+			//accessPassword
+			if (VWliveStreaming::inList($userkeys, $options['accessPassword']))
+			{
+				if ($editPost) $value = $channel->post_password;
+				else $value = '';
+
+				$extraRows .= '<tr><td>Access Password</td><td><input size=16 name="accessPassword" id="accessPassword" value="' . $value . '"><BR>Password to protect channel.</td></tr>';
+			}
 
 			//accessList
 			if (VWliveStreaming::inList($userkeys, $options['accessList']))
@@ -2134,6 +2155,22 @@ Software</a>.</p></div>';
 
 
 		//! Channel Post
+
+		function the_title($title) {
+			$title = attribute_escape($title);
+			$findthese = array(
+				'#Protected:#',
+				'#Private:#'
+			);
+			$replacewith = array(
+				'', // What to replace "Protected:" with
+				'' // What to replace "Private:" with
+			);
+			$title = preg_replace($findthese, $replacewith, $title);
+			return $title;
+		}
+
+
 		function channel_page($content)
 		{
 
@@ -2145,8 +2182,9 @@ Software</a>.</p></div>';
 
 			if (get_post_type( $postID ) != 'channel') return $content;
 
-//			global $wpdb;
-//			$stream = $wpdb->get_var( "SELECT post_name FROM $wpdb->posts WHERE ID = '" . $postID . "' and post_type='channel' LIMIT 0,1" );
+			//   global $wpdb;
+			//   $stream = $wpdb->get_var( "SELECT post_name FROM $wpdb->posts WHERE ID = '" . $postID . "' and post_type='channel' LIMIT 0,1" );
+
 
 			$stream = sanitize_file_name(get_the_title($postID));
 
@@ -2179,7 +2217,7 @@ Software</a>.</p></div>';
 
 
 			if (get_post_meta( $postID, 'vw_ipCamera', true )) //ip camera - update snapshot
-			{
+				{
 				VWliveStreaming::streamSnapshot($stream, true);
 			}
 
@@ -2971,7 +3009,11 @@ align="absmiddle" border="0">Start Broadcasting</a>
 		function roomFeatures()
 		{
 			return array(
-
+				'accessPassword' => array(
+					'name'=>'Access Password',
+					'description' =>'Can specify a password to protect channel access.',
+					'installed' => 1,
+					'default' => 'Super Admin, Administrator, Editor'),
 				'accessList' => array(
 					'name'=>'Access List',
 					'description' =>'Can specify list of user logins, roles, emails that can access the channel.',
@@ -4154,7 +4196,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 			$filename = "$dir/$stream.jpg";
 			if (file_exists($filename)) if (time()-filemtime($filename) < 15) return; //do not update if fresh
 
-			$log_file = $filename . '.txt';
+				$log_file = $filename . '.txt';
 
 			global $wpdb;
 			$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . $stream . "' and post_type='channel' LIMIT 0,1" );
@@ -4285,6 +4327,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 			switch ($_GET['task'])
 			{
+				//! vw_snapshots
 			case 'vw_snapshots':
 				$options = get_option('VWliveStreamingOptions');
 
@@ -4344,15 +4387,16 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 				}
 				?>loadstatus=1<?php
 				break;
-
+				//! lb_logout
 			case 'lb_logout':
 				wp_redirect( get_home_url() .'?msg='. urlencode($_GET['message']) );
 				break;
-
+				//! vw_logout
 			case 'vw_logout':
 				?>loggedout=1<?php
 				break;
 
+				//! vw_extregister
 			case 'vw_extregister':
 
 
@@ -4396,6 +4440,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 				break;
 
+				//! vw_extlogin
 			case 'vw_extlogin':
 
 
@@ -4499,8 +4544,9 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 				?>firstParameter=fix&server=<?php echo urlencode($rtmp_server); ?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&room=<?php echo $room?>&welcome=Welcome!&username=<?php echo $username?>&userlabel=<?php echo $userlabel?>&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo urlencode($options['overLink'])?>&userType=3&msg=<?php echo $msg?>&loggedin=<?php echo $loggedin?>&loadstatus=1&debug=<?php echo $debug?><?php
 				break;
 
-			case 'vw_extchat':
 
+				//! vw_extchat
+			case 'vw_extchat':
 				$options = get_option('VWliveStreamingOptions');
 
 				$updated = $_POST['t'];
@@ -5093,6 +5139,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 				$camMaxBandwidth?>&onlyVideo=<?php echo $options['onlyVideo']?>&noEmbeds=<?php echo $options['noEmbeds'];  echo $parameters; ?>&loadstatus=1&debug=<?php echo $debug; ?><?php
 				break;
 
+				//! vc_chatlog
 			case 'vc_chatlog':
 
 				//Public and private chat logs
@@ -5263,6 +5310,7 @@ lt=last session time received from this script in (milliseconds)
 				?>timeTotal=<?php echo $maximumSessionTime?>&timeUsed=<?php echo $timeUsed?>&lastTime=<?php echo $currentTime?>&disconnect=<?php echo $disconnect?>&loadstatus=1<?php
 				break;
 
+				//! rtmp_status
 			case 'rtmp_status':
 
 				$users = unserialize(stripslashes($_POST['users']));
@@ -5491,7 +5539,7 @@ lt=last session time received from this script in (milliseconds)
 				echo "VideoWhisper=1&usersCount=".count($users)."&controlUsers=$controlUsersS";
 
 				break;
-
+				//! rtmp_logout
 			case 'rtmp_logout':
 
 				//rtmp server notifies client disconnect here
@@ -5510,7 +5558,7 @@ lt=last session time received from this script in (milliseconds)
 				}
 				?><?php
 				break;
-
+				//! rtmp_login
 			case 'rtmp_login':
 
 
@@ -5742,7 +5790,7 @@ cam, mic = 0 none, 1 disabled, 2 enabled
 
 				?>timeTotal=<?php echo $maximumSessionTime?>&timeUsed=<?php echo $timeUsed?>&lastTime=<?php echo $currentTime?>&disconnect=<?php echo $disconnect?>&loadstatus=1<?php
 				break;
-
+				//! translation
 			case 'translation':
 ?>
 
@@ -5754,7 +5802,7 @@ cam, mic = 0 none, 1 disabled, 2 enabled
 </translations>
 			<?php
 				break;
-
+				//! ads
 			case 'ads':
 
 				/* Sample local ads serving script ; Or use http://adinchat.com compatible ads server to setup http://adinchat.com/v/your-campaign-id
