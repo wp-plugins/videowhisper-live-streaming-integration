@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.41
+Version: 4.32.42
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -43,7 +43,7 @@ if (!class_exists("VWliveStreaming"))
 			//channel page
 			add_filter('the_title', array('VWliveStreaming','the_title'));
 			add_filter('the_content', array('VWliveStreaming','channel_page'));
-			add_filter('query_vars', array('VWliveStreaming','channel_query_vars'));
+			add_filter('query_vars', array('VWliveStreaming','query_vars'));
 			add_filter('pre_get_posts', array('VWliveStreaming','pre_get_posts'));
 
 			//admin channels
@@ -2185,7 +2185,6 @@ Software</a>.</p></div>';
 			//   global $wpdb;
 			//   $stream = $wpdb->get_var( "SELECT post_name FROM $wpdb->posts WHERE ID = '" . $postID . "' and post_type='channel' LIMIT 0,1" );
 
-
 			$stream = sanitize_file_name(get_the_title($postID));
 
 			global $wp_query;
@@ -2352,13 +2351,30 @@ Software</a>.</p></div>';
 		}
 
 
-		function channel_query_vars( $query_vars ){
+		function query_vars( $query_vars ){
 			// array of recognized query vars
 			$query_vars[] = 'broadcast';
 			$query_vars[] = 'video';
 			$query_vars[] = 'hls';
 			$query_vars[] = 'external';
+			$query_vars[] = 'vwls_eula';
+			$query_vars[] = 'vwls_crossdomain';
 			return $query_vars;
+		}
+
+		function parse_request( &$wp )
+		{
+			if ( array_key_exists( 'vwls_eula', $wp->query_vars ) ) {
+				$options = get_option('VWliveStreamingOptions');
+				echo html_entity_decode(stripslashes($options['eula_txt']));
+				exit();
+			}
+
+			if ( array_key_exists( 'vwls_crossdomain', $wp->query_vars ) ) {
+				$options = get_option('VWliveStreamingOptions');
+				echo html_entity_decode(stripslashes($options['crossdomain_xml']));
+				exit();
+			}
 		}
 
 		// Register Custom Post Type
@@ -2411,6 +2427,9 @@ Software</a>.</p></div>';
 			add_rewrite_endpoint( 'video', EP_ALL );
 			add_rewrite_endpoint( 'hls', EP_ALL );
 			add_rewrite_endpoint( 'external', EP_ALL );
+
+			add_rewrite_rule( 'eula.txt$', 'index.php?vwls_eula=1', 'top' );
+			add_rewrite_rule( 'crossdomain.xml$', 'index.php?vwls_crossdomain=1', 'top' );
 
 			//flush_rewrite_rules();
 
@@ -3149,6 +3168,28 @@ align="absmiddle" border="0">Start Broadcasting</a>
 				'soundQuality' => '9',
 				'micRate' => '22',
 
+				//! mobile settings
+				'camResolutionMobile' => '480x360',
+				'camFPSMobile' => '15',
+
+				'camBandwidthMobile' => '40960',
+
+				'videoCodecMobile'=>'H263',
+				'codecProfileMobile' => 'baseline',
+				'codecLevelMobile' => '3.1',
+
+				'soundCodecMobile'=> 'Speex',
+				'soundQualityMobile' => '9',
+				'micRateMobile' => '22',
+				//mobile:end
+
+			    'broadcastTime' => '600',
+				'watchTime' => '3000',
+				'pBroadcastTime' => '6000',
+				'pWatchTime' => '30000',
+				'timeReset' => '30',
+				'bannedNames' => 'bann1, bann2',
+
 				'onlineExpiration0' =>'310',
 				'onlineExpiration1' =>'40',
 				'parameters' => '&bufferLive=1&bufferFull=1&showCredit=1&disconnectOnTimeout=1&offlineMessage=Channel+Offline&disableVideo=0&disableChat=0&disableUsers=0&fillWindow=0&adsTimeout=15000&externalInterval=360000&statusInterval=300000',
@@ -3369,6 +3410,76 @@ HTMLCODE
 				'alwaysWatch' => '0',
 				'disableBandwidthDetection' => '1',
 				'mycred' => '1',
+				'eula_txt' =>'The following Terms of Use (the "Terms") is a binding agreement between you, either an individual subscriber, customer, member, or user of at least 18 years of age or a single entity ("you", or collectively "Users") and owners of this application, service site and networks that allow for the distribution and reception of video, audio, chat and other content (the "Service").
+
+By accessing the Service and/or by clicking "I agree", you agree to be bound by these Terms of Use. You hereby represent and warrant to us that you are at least eighteen (18) years of age or and otherwise capable of entering into and performing legal agreements, and that you agree to be bound by the following Terms and Conditions. If you use the Service on behalf of a business, you hereby represent to us that you have the authority to bind that business and your acceptance of these Terms of Use will be treated as acceptance by that business. In that event, "you" and "your" will refer to that business in these Terms of Use.
+
+Prohibited Conduct
+
+The Services may include interactive areas or services (" Interactive Areas ") in which you or other users may create, post or store content, messages, materials, data, information, text, music, sound, photos, video, graphics, applications, code or other items or materials on the Services ("User Content" and collectively with Broadcaster Content, " Content "). You are solely responsible for your use of such Interactive Areas and use them at your own risk. BY USING THE SERVICE, INCLUDING THE INTERACTIVE AREAS, YOU AGREE NOT TO violate any law, contract, intellectual property or other third-party right or commit a tort, and that you are solely responsible for your conduct while on the Service. You agree that you will abide by these Terms of Service and will not:
+
+use the Service for any purposes other than to disseminate or receive original or appropriately licensed content and/or to access the Service as such services are offered by us;
+
+rent, lease, loan, sell, resell, sublicense, distribute or otherwise transfer the licenses granted herein;
+
+post, upload, or distribute any defamatory, libelous, or inaccurate Content;
+
+impersonate any person or entity, falsely claim an affiliation with any person or entity, or access the Service accounts of others without permission, forge another persons digital signature, misrepresent the source, identity, or content of information transmitted via the Service, or perform any other similar fraudulent activity;
+
+delete the copyright or other proprietary rights notices on the Service or Content;
+
+make unsolicited offers, advertisements, proposals, or send junk mail or spam to other Users of the Service, including, without limitation, unsolicited advertising, promotional materials, or other solicitation material, bulk mailing of commercial advertising, chain mail, informational announcements, charity requests, petitions for signatures, or any of the foregoing related to promotional giveaways (such as raffles and contests), and other similar activities;
+
+harvest or collect the email addresses or other contact information of other users from the Service for the purpose of sending spam or other commercial messages;
+
+use the Service for any illegal purpose, or in violation of any local, state, national, or international law, including, without limitation, laws governing intellectual property and other proprietary rights, and data protection and privacy;
+
+defame, harass, abuse, threaten or defraud Users of the Service, or collect, or attempt to collect, personal information about Users or third parties without their consent;
+
+remove, circumvent, disable, damage or otherwise interfere with security-related features of the Service or Content, features that prevent or restrict use or copying of any content accessible through the Service, or features that enforce limitations on the use of the Service or Content;
+
+reverse engineer, decompile, disassemble or otherwise attempt to discover the source code of the Service or any part thereof, except and only to the extent that such activity is expressly permitted by applicable law notwithstanding this limitation;
+
+modify, adapt, translate or create derivative works based upon the Service or any part thereof, except and only to the extent that such activity is expressly permitted by applicable law notwithstanding this limitation;
+
+intentionally interfere with or damage operation of the Service or any user enjoyment of them, by any means, including uploading or otherwise disseminating viruses, adware, spyware, worms, or other malicious code;
+
+relay email from a third party mail servers without the permission of that third party;
+
+use any robot, spider, scraper, crawler or other automated means to access the Service for any purpose or bypass any measures we may use to prevent or restrict access to the Service;
+
+manipulate identifiers in order to disguise the origin of any Content transmitted through the Service;
+
+interfere with or disrupt the Service or servers or networks connected to the Service, or disobey any requirements, procedures, policies or regulations of networks connected to the Service;use the Service in any manner that could interfere with, disrupt, negatively affect or inhibit other users from fully enjoying the Service, or that could damage, disable, overburden or impair the functioning of the Service in any manner;
+
+use or attempt to use another user account without authorization from such user and us;
+
+attempt to circumvent any content filtering techniques we employ, or attempt to access any service or area of the Service that you are not authorized to access; or
+
+attempt to indicate in any manner that you have a relationship with us or that we have endorsed you or any products or services for any purpose.
+
+Further, BY USING THE SERVICE, INCLUDING THE INTERACTIVE AREAS YOU AGREE NOT TO post, upload to, transmit, distribute, store, create or otherwise publish through the Service any of the following:
+
+Content that would constitute, encourage or provide instructions for a criminal offense, violate the rights of any party, or that would otherwise create liability or violate any local, state, national or international law or regulation;
+
+Content that may infringe any patent, trademark, trade secret, copyright or other intellectual or proprietary right of any party. By posting any Content, you represent and warrant that you have the lawful right to distribute and reproduce such Content;
+
+Content that is unlawful, libelous, defamatory, obscene, pornographic, indecent, lewd, suggestive, harassing, threatening, invasive of privacy or publicity rights, abusive, inflammatory, fraudulent or otherwise objectionable;
+
+Content that impersonates any person or entity or otherwise misrepresents your affiliation with a person or entity;
+
+private information of any third party, including, without limitation, addresses, phone numbers, email addresses, Social Security numbers and credit card numbers;
+
+viruses, corrupted data or other harmful, disruptive or destructive files; and
+
+Content that, in the sole judgment of Service moderators, is objectionable or which restricts or inhibits any other person from using or enjoying the Interactive Areas or the Service, or which may expose us or our users to any harm or liability of any type.
+
+Service takes no responsibility and assumes no liability for any Content posted, stored or uploaded by you or any third party, or for any loss or damage thereto, nor is liable for any mistakes, defamation, slander, libel, omissions, falsehoods, obscenity, pornography or profanity you may encounter. Your use of the Service is at your own risk. Enforcement of the user content or conduct rules set forth in these Terms of Service is solely at Service discretion, and failure to enforce such rules in some instances does not constitute a waiver of our right to enforce such rules in other instances. In addition, these rules do not create any private right of action on the part of any third party or any reasonable expectation that the Service will not contain any content that is prohibited by such rules. As a provider of interactive services, Service is not liable for any statements, representations or Content provided by our users in any public forum, personal home page or other Interactive Area. Service does not endorse any Content or any opinion, recommendation or advice expressed therein, and Service expressly disclaims any and all liability in connection with Content. Although Service has no obligation to screen, edit or monitor any of the Content posted in any Interactive Area, Service reserves the right, and has absolute discretion, to remove, screen or edit any Content posted or stored on the Service at any time and for any reason without notice, and you are solely responsible for creating backup copies of and replacing any Content you post or store on the Service at your sole cost and expense. Any use of the Interactive Areas or other portions of the Service in violation of the foregoing violates these Terms and may result in, among other things, termination or suspension of your rights to use the Interactive Areas and/or the Service.
+',
+				'crossdomain_xml' =>'<cross-domain-policy>
+<allow-access-from domain="*"/>
+<site-control permitted-cross-domain-policies="master-only"/>
+</cross-domain-policy>',
 				'videowhisper' => 0
 			);
 
@@ -3422,7 +3533,7 @@ HTMLCODE
     <a href="admin.php?page=live-streaming&tab=features" class="nav-tab <?php echo $active_tab=='features'?'nav-tab-active':'';?>">Features</a>
     <a href="admin.php?page=live-streaming&tab=watcher" class="nav-tab <?php echo $active_tab=='watcher'?'nav-tab-active':'';?>">Watch</a>
     <a href="admin.php?page=live-streaming&tab=billing" class="nav-tab <?php echo $active_tab=='billing'?'nav-tab-active':'';?>">Billing</a>
-
+    <a href="admin.php?page=live-streaming&tab=app" class="nav-tab <?php echo $active_tab=='app'?'nav-tab-active':'';?>">Mobile App</a>
 </h2>
 
 <form method="post" action="<?php echo $_SERVER["REQUEST_URI"]; ?>">
@@ -3430,6 +3541,134 @@ HTMLCODE
 <?php
 			switch ($active_tab)
 			{
+			case 'app':
+				$options['eula_txt'] = htmlentities(stripslashes($options['eula_txt']));
+				$options['crossdomain_xml'] = htmlentities(stripslashes($options['crossdomain_xml']));
+
+				$eula_url = site_url() . '/eula.txt';
+				$crossdomain_url = site_url() . '/crossdomain.xml';
+
+				//TEST: wp-admin/admin-ajax.php?action=vwls&task=vw_extlogin&videowhisper=1
+?>
+<h3>Application Settings</h3>
+<p>This section is for configuring settings related to remote apps (iOS/Android/Desktop) that can be used in combination with this web based solution. Such apps can be <a href="http://www.videowhisper.com/?p=iPhone-iPad-Apps">custom made</a> for each site.</p>
+
+<h4>Default Webcam Resolution</h4>
+<select name="camResolutionMobile" id="camResolutionMobile">
+<?php
+				foreach (array('160x120','320x240','426x240','480x360', '640x360', '640x480', '720x480', '720x576', '854x480', '1280x720', '1440x1080', '1920x1080') as $optItm)
+				{
+?>
+  <option value="<?php echo $optItm;?>" <?php echo $options['camResolutionMobile']==$optItm?"selected":""?>> <?php echo $optItm;?> </option>
+  <?php
+				}
+?>
+ </select>
+ <br>Higher resolution will require <a target="_blank" href="http://www.videochat-scripts.com/recommended-h264-video-bitrate-based-on-resolution/">higher bandwidth</a> to avoid visible blocking and quality loss (ex. 1Mbps required for 640x360) .Webcam capture resolution should be same as video size in player/watch interface.
+
+<h4>Webcam Frames Per Second</h4>
+<select name="camFPSMobile" id="camFPSMobile">
+<?php
+				foreach (array('1','8','10','12','15','29','30','60') as $optItm)
+				{
+?>
+  <option value="<?php echo $optItm;?>" <?php echo $options['camFPSMobile']==$optItm?"selected":""?>> <?php echo $optItm;?> </option>
+  <?php
+				}
+?>
+ </select>
+
+<h4>Video Stream Bandwidth</h4>
+<input name="camBandwidthMobile" type="text" id="camBandwidthMobile" size="7" maxlength="7" value="<?php echo $options['camBandwidthMobile']?>"/> (bytes/s)
+<br>This sets size of video stream (without audio) and therefore the video quality.
+<br>Total stream size should be less than maximum broadcaster upload speed (multiply by 8 to get bps, ex. 50000b/s requires connection higher than 400kbps).
+<br>Do a speed test from broadcaster computer to a location near your streaming (rtmp) server using a tool like <a href="http://www.speedtest.net" target="_blank">SpeedTest.net</a> . Drag and zoom to a server in contry/state where you host (Ex: central US if you host with VideoWhisper) and select it. The upload speed is the maximum data you'll be able to broadcast.
+
+<?php
+/*
+
+<h4>Video Codec</h4>
+<select name="videoCodecMobile" id="videoCodecMobile">
+  <option value="H264" <?php echo $options['videoCodecMobile']=='H264'?"selected":""?>>H264</option>
+  <option value="H263" <?php echo $options['videoCodecMobile']=='H263'?"selected":""?>>H263</option>
+</select>
+<BR>Mobile apps don't currently support H264 (due to Adobe Air limitations).
+
+
+<h4>H264 Video Codec Profile</h4>
+<select name="codecProfileMobile" id="codecProfileMobile">
+  <option value="main" <?php echo $options['codecProfileMobile']=='main'?"selected":""?>>main</option>
+  <option value="baseline" <?php echo $options['codecProfileMobile']=='baseline'?"selected":""?>>baseline</option>
+</select>
+<br>Recommended: Baseline
+
+<h4>H264 Video Codec Level</h4>
+<select name="codecLevelMobile" id="codecLevelMobile">
+<?php
+				foreach (array('1', '1b', '1.1', '1.2', '1.3', '2', '2.1', '2.2', '3', '3.1', '3.2', '4', '4.1', '4.2', '5', '5.1') as $optItm)
+				{
+?>
+  <option value="<?php echo $optItm;?>" <?php echo $options['codecLevelMobile']==$optItm?"selected":""?>> <?php echo $optItm;?> </option>
+  <?php
+				}
+?>
+ </select>
+<br>Recommended: 3.1
+
+<h4>Sound Codec</h4>
+<select name="soundCodecMobile" id="soundCodecMobile">
+  <option value="Speex" <?php echo $options['soundCodecMobile']=='Speex'?"selected":""?>>Speex</option>
+  <option value="Nellymoser" <?php echo $options['soundCodecMobile']=='Nellymoser'?"selected":""?>>Nellymoser</option>
+</select>
+<BR>Speex is recommended for voice audio.
+<BR>Current web codecs used by Flash plugin are not currently supported by iOS. For delivery to iOS, audio should be transcoded to AAC (HE-AAC or AAC-LC up to 48 kHz, stereo audio).
+
+<h4>Speex Sound Quality</h4>
+<select name="soundQualityMobile" id="soundQualityMobile">
+<?php
+				foreach (array('0', '1','2','3','4','5','6','7','8','9','10') as $optItm)
+				{
+?>
+  <option value="<?php echo $optItm;?>" <?php echo $options['soundQualityMobile']==$optItm?"selected":""?>> <?php echo $optItm;?> </option>
+  <?php
+				}
+?>
+ </select>
+ <br>Higher quality requires more <a href="http://www.videochat-scripts.com/speex-vs-nellymoser-bandwidth/" target="_blank" >bandwidth</a>.
+<br>Speex quality 9 requires 34.2kbps and generates 4275 b/s transfer. Quality 10 requires 42.2 kbps.
+
+<h4>Nellymoser Sound Rate</h4>
+<select name="micRateMobile" id="micRateMobile">
+<?php
+				foreach (array('5', '8', '11', '22','44') as $optItm)
+				{
+?>
+  <option value="<?php echo $optItm;?>" <?php echo $options['micRateMobile']==$optItm?"selected":""?>> <?php echo $optItm;?> </option>
+  <?php
+				}
+?>
+ </select>
+<br>Higher quality requires more <a href="http://www.videochat-scripts.com/speex-vs-nellymoser-bandwidth/" target="_blank" >bandwidth</a>.
+<br>NellyMoser rate 22 requires 44.1kbps and generates 5512b/s transfer. Rate 44 requires 88.2 kbps.
+
+*/
+?>
+
+<h4><?php _e('End User License Agreement','vw2wvc'); ?></h4>
+<textarea name="eula_txt" id="eula_txt" cols="100" rows="8"><?php echo $options['eula_txt']?></textarea>
+<br>Users are required to accept this agreement before registering from app.
+<br>After updating permalinks (<a href="options-permalink.php">Save Changes on Permalinks page</a>) this should become available as <a href="<?php echo $eula_url ?>"><?php echo $eula_url ?></a>.
+<br>This works if file doesn't already exist. You can also create the file for faster serving.
+
+<h4><?php _e('Cross Domain Policy','vw2wvc'); ?></h4>
+<textarea name="crossdomain_xml" id="crossdomain_xml" cols="100" rows="4"><?php echo $options['crossdomain_xml']?></textarea>
+<br>This is required for applications to access interface and scripts on site.
+<br>After updating permalinks (<a href="options-permalink.php">Save Changes on Permalinks page</a>) this should become available as <a href="<?php echo $crossdomain_url ?>"><?php echo $crossdomain_url ?></a>.
+<br>This works if file doesn't already exist. You can also create the file for faster serving.
+<?php
+
+			break;
+
 			case 'general':
 
 				$broadcast_url = admin_url() . 'admin-ajax.php?action=vwls_broadcast&n=';
@@ -4443,13 +4682,14 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 				//! vw_extlogin
 			case 'vw_extlogin':
 
-
-				//esternal login GET u=user, p=password
+				//external login GET u=user, p=password
 
 				$options = get_option('VWliveStreamingOptions');
 				$rtmp_server = $options['rtmp_server'];
 				$rtmp_amf = $options['rtmp_amf'];
 				$userName =  $options['userName']; if (!$userName) $userName='user_nicename';
+
+				$camRes = explode('x',$options['camResolutionMobile']);
 
 				$canBroadcast = $options['canBroadcast'];
 				$broadcastList = $options['broadcastList'];
@@ -4541,7 +4781,10 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 
 
-				?>firstParameter=fix&server=<?php echo urlencode($rtmp_server); ?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&room=<?php echo $room?>&welcome=Welcome!&username=<?php echo $username?>&userlabel=<?php echo $userlabel?>&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo urlencode($options['overLink'])?>&userType=3&msg=<?php echo $msg?>&loggedin=<?php echo $loggedin?>&loadstatus=1&debug=<?php echo $debug?><?php
+				?>firstParameter=fix&server=<?php echo urlencode($rtmp_server); ?>&serverAMF=<?php echo $rtmp_amf?>&tokenKey=<?php echo $tokenKey?>&room=<?php echo $room?>&welcome=Welcome!&username=<?php echo $username?>&userlabel=<?php echo $userlabel?>&overLogo=<?php echo urlencode($options['overLogo'])?>&overLink=<?php echo urlencode($options['overLink'])?>&camWidth=<?php echo $camRes[0];?>&camHeight=<?php echo $camRes[1];?>&camFPS=<?php echo
+				$options['camFPSMobile']?>&camBandwidth=<?php echo $options['camBandwidthMobile']?>&videoCodec=<?php echo $options['videoCodecMobile']?>&codecProfile=<?php echo $options['codecProfileMobile']?>&codecLevel=<?php echo
+				$options['codecLevelMobile']?>&soundCodec=<?php echo $options['soundCodecMobile']?>&soundQuality=<?php echo $options['soundQualityMobile']?>&micRate=<?php echo
+				$options['micRateMobile']?>&userType=3&msg=<?php echo $msg?>&loggedin=<?php echo $loggedin?>&loadstatus=1&debug=<?php echo $debug?><?php
 				break;
 
 
@@ -5865,6 +6108,7 @@ if (isset($liveStreaming)) {
 	register_activation_hook( __FILE__, array(&$liveStreaming, 'install' ) );
 
 	add_action( 'init', array(&$liveStreaming, 'channel_post'));
+	add_action( 'parse_request', array(&$liveStreaming, 'parse_request'));
 
 	add_action("plugins_loaded", array(&$liveStreaming, 'init'));
 	add_action('admin_menu', array(&$liveStreaming, 'admin_menu'));
