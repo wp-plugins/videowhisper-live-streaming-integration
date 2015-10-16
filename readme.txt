@@ -98,7 +98,7 @@ More information, the latest updates, other plugins and non-WordPress editions c
 
 == Changelog ==
 
-= 4.32.41=
+= 4.32.41 =
 * Access Password
 
 = 4.32.37 =
