@@ -3,7 +3,7 @@
 Plugin Name: VideoWhisper Live Streaming
 Plugin URI: http://www.videowhisper.com/?p=WordPress+Live+Streaming
 Description: Live Streaming
-Version: 4.32.42
+Version: 4.32.46
 Author: VideoWhisper.com
 Author URI: http://www.videowhisper.com/
 Contributors: videowhisper, VideoWhisper.com
@@ -276,12 +276,21 @@ if (!class_exists("VWliveStreaming"))
 		//! room fc
 		function roomURL($room)
 		{
+
+			$options = get_option('VWliveStreamingOptions');
+
+			if ($options['channelUrl'] == 'post')
+			{
 			global $wpdb;
 
 			$postID = $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_title = '" . sanitize_file_name($room) . "' and post_type='channel' LIMIT 0,1" );
 
 			if ($postID) return get_post_permalink($postID);
-			else return plugin_dir_url(__FILE__) . 'ls/channel.php?n=' . urlencode(sanitize_file_name($room));
+			}
+
+			if ($options['channelUrl'] == 'full') return site_url('/fullchannel/' . urlencode($room));
+
+			return plugin_dir_url(__FILE__) . 'ls/channel.php?n=' . urlencode(sanitize_file_name($room));
 
 		}
 
@@ -777,7 +786,20 @@ if (!class_exists("VWliveStreaming"))
 						}
 
 
-						$htmlCode .= '<tr><td><a href="' . get_permalink($postID) . '"><h4>' . $channel->post_title . '</h4>' .  get_the_post_thumbnail($postID, 'medium') . '</a>';
+						//snapshot
+						$dir = $options['uploadsPath']. "/_snapshots";
+						$thumbFilename = "$dir/$stream.jpg";
+
+						$noCache = '';
+						if ($age=='LIVE') $noCache='?'.((time()/10)%100);
+						if (file_exists($thumbFilename)) $thumbCode = '<IMG src="' . VWliveStreaming::path2url($thumbFilename) . $noCache .'" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px">';
+						else $thumbCode = '<IMG SRC="' . plugin_dir_url(__FILE__). 'screenshot-3.jpg" width="' . $options['thumbWidth'] . 'px" height="' . $options['thumbHeight'] . 'px">';
+
+						//channel url
+						$url = get_permalink($postID);
+
+
+						$htmlCode .= '<tr><td><a href="' . $url . '"><h4>' . $channel->post_title . '</h4>' .  $thumbCode . '</a>';
 
 						if ($channelR)
 							$htmlCode .= '<br> Broadcast: ' . VWliveStreaming::format_time($channelR->btime) . ' / ' . VWliveStreaming::format_time($maximumBroadcastTime) .  '<br> Watch: ' . VWliveStreaming::format_time($channelR->wtime) . ' / ' . VWliveStreaming::format_time($maximumWatchTime);
@@ -1038,7 +1060,7 @@ HTMLCODE;
 		}
 
 
-		function html_watch($stream)
+		function html_watch($stream, $width='100%', $height='100%')
 		{
 			$stream = sanitize_file_name($stream);
 
@@ -1053,7 +1075,7 @@ HTMLCODE;
 
 			$htmlCode = <<<HTMLCODE
 <div id="videowhisper_container_$streamLabel">
-<object id="videowhisper_watch_$streamLabel" width="100%" height="100%" type="application/x-shockwave-flash" data="$swfurl">
+<object id="videowhisper_watch_$streamLabel" width="$width" height="$height" type="application/x-shockwave-flash" data="$swfurl">
 <param name="movie" value="$swfurl"></param><param bgcolor="$bgcolor"><param name="scale" value="noscale" /> </param><param name="salign" value="lt"></param><param name="allowFullScreen"
 value="true"></param><param name="allowscriptaccess" value="always"></param>
 </object>
@@ -1072,19 +1094,19 @@ HTMLCODE;
 				if (get_post_type( get_the_ID() ) == 'channel') $stream = get_the_title(get_the_ID());
 
 
-				$atts = shortcode_atts(array('channel' => $stream), $atts, 'videowhisper_watch');
+				$atts = shortcode_atts(array('channel' => $stream, 'width' => '100%', 'height' => '100%'), $atts, 'videowhisper_watch');
 
 			if (!$stream) $stream = $atts['channel']; //parameter channel="name"
-
 			if (!$stream) $stream = $_GET['n'];
-
 			$stream = sanitize_file_name($stream);
-
 
 			if (!$stream)
 			{
 				return "Watch Error: Missing channel name!";
 			}
+
+			$width=$atts['width']; if (!$width) $width = "100%";
+			$height=$atts['height']; if (!$height) $height = "100%";
 
 			//HLS if iOS/Android detected
 			$agent = $_SERVER['HTTP_USER_AGENT'];
@@ -1115,7 +1137,7 @@ $watchStyle
 
 HTMLCODE;
 
-			return VWliveStreaming::html_watch($stream) . $afterCode ;
+			return VWliveStreaming::html_watch($stream, $width, $height) . $afterCode ;
 
 		}
 
@@ -1213,7 +1235,7 @@ HTMLCODE;
 
 			$htmlCode = <<<HTMLCODE
 <div id="videowhisper_container_$stream">
-<object id="videowhisper_video_$stream" width="100%" height="100%" type="application/x-shockwave-flash" data="$swfurl">
+<object id="videowhisper_video_$stream" width="$width" height="$height" type="application/x-shockwave-flash" data="$swfurl">
 <param name="movie" value="$swfurl"></param><param bgcolor="$bgcolor"><param name="scale" value="noscale" /> </param><param name="salign" value="lt"></param><param name="allowFullScreen"
 value="true"></param><param name="allowscriptaccess" value="always"></param>
 </object>
@@ -1251,8 +1273,10 @@ HTMLCODE;
 
 			//HLS if iOS detected
 			$agent = $_SERVER['HTTP_USER_AGENT'];
-			if( strstr($agent,'iPhone') || strstr($agent,'iPod') || strstr($agent,'iPad'))
-				return do_shortcode("[videowhisper_hls channel=\"$stream\" width=\"$width\" height=\"$height\"]");
+			$Android = stripos($agent,"Android");
+			$iOS = ( strstr($agent,'iPhone') || strstr($agent,'iPod') || strstr($agent,'iPad'));
+
+			if ($Android||$iOS) return do_shortcode("[videowhisper_hls channel=\"$stream\" width=\"$width\" height=\"$height\"]");
 
 			$afterCode = <<<HTMLCODE
 <br style="clear:both" />
@@ -1564,7 +1588,19 @@ HTMLCODE;
 
 		function path2url($file, $Protocol='http://')
 		{
-			return $Protocol.$_SERVER['HTTP_HOST'].str_replace($_SERVER['DOCUMENT_ROOT'], '', $file);
+			$url = $Protocol.$_SERVER['HTTP_HOST'];
+
+
+			//on godaddy hosting uploads is in different folder like /var/www/clients/ ..
+			$upload_dir = wp_upload_dir();
+			if (strstr($file, $upload_dir['basedir']))
+				return  $upload_dir['baseurl'] . str_replace($upload_dir['basedir'], '', $file);
+
+			if (strstr($file, $_SERVER['DOCUMENT_ROOT']))
+				return  $url . str_replace($_SERVER['DOCUMENT_ROOT'], '', $file);
+
+
+			return $url . $file;
 		}
 
 
@@ -1579,7 +1615,7 @@ HTMLCODE;
 			return sprintf("%d%s%d%s%d%s", floor($t/86400), 'd ', ($t/3600)%24,'h ', ($t/60)%60,'m');
 		}
 
-		//! Ajax
+		//! AJAX
 		function wp_enqueue_scripts()
 		{
 			wp_enqueue_script("jquery");
@@ -1640,7 +1676,7 @@ HTMLCODE;
 			if ($options['postChannels']) //channel posts enabled
 				{
 
-				//show header option controls
+				//! header option controls
 
 				$ajaxurlP = $ajaxurl . '&p='.$page;
 				$ajaxurlPC = $ajaxurl . '&cat=' . $category ;
@@ -1674,7 +1710,7 @@ HTMLCODE;
 				echo '</div>';
 
 
-				//query args
+				//! query args
 				$args=array(
 					'post_type' => 'channel',
 					'post_status' => 'publish',
@@ -1700,7 +1736,7 @@ HTMLCODE;
 
 				$postslist = get_posts( $args );
 
-				//list channels
+				//! list channels
 				if (count($postslist)>0)
 				{
 					$k = 0;
@@ -1732,7 +1768,7 @@ HTMLCODE;
 				}
 				else echo "No channels match current selection.";
 
-				//pagination
+				//! pagination
 				if ($selectPage)
 				{
 					echo "<BR>";
@@ -2359,6 +2395,8 @@ Software</a>.</p></div>';
 			$query_vars[] = 'external';
 			$query_vars[] = 'vwls_eula';
 			$query_vars[] = 'vwls_crossdomain';
+			$query_vars[] = 'vwls_fullchannel';
+
 			return $query_vars;
 		}
 
@@ -2375,6 +2413,26 @@ Software</a>.</p></div>';
 				echo html_entity_decode(stripslashes($options['crossdomain_xml']));
 				exit();
 			}
+
+			if ( array_key_exists( 'vwls_fullchannel', $wp->query_vars ) ) {
+
+				$stream = sanitize_file_name($wp->query_vars['vwls_fullchannel']);
+
+				if (!$stream)
+				{
+					echo "No channel name provided!";
+					exit;
+
+				}
+
+				echo '<title>' . $stream . '</title>
+<body style="margin:0; padding:0; width:100%; height:100%">
+';
+				echo VWliveStreaming::html_watch($stream);
+
+				exit();
+			}
+
 		}
 
 		// Register Custom Post Type
@@ -2430,6 +2488,8 @@ Software</a>.</p></div>';
 
 			add_rewrite_rule( 'eula.txt$', 'index.php?vwls_eula=1', 'top' );
 			add_rewrite_rule( 'crossdomain.xml$', 'index.php?vwls_crossdomain=1', 'top' );
+			add_rewrite_rule( '^fullchannel/([\w]*)?', 'index.php?vwls_fullchannel=$matches[1]', 'top' );
+
 
 			//flush_rewrite_rules();
 
@@ -2990,8 +3050,8 @@ align="absmiddle" border="0">Start Broadcasting</a>
 
 <h3>ShortCodes</h3>
 <ul>
-  <li><h4>[videowhisper_watch channel=&quot;Channel Name&quot;]</h4>
-    Displays watch interface with video and discussion. If iOS is detected it shows HLS instead.</li>
+  <li><h4>[videowhisper_watch channel=&quot;Channel Name&quot; width=&quot;100%&quot; height=&quot;100%&quot;]</h4>
+    Displays watch interface with video and discussion. If iOS is detected it shows HLS instead. Container style can be configured from plugin settings.</li>
   <li><h4>[videowhisper_video channel=&quot;Channel Name&quot; width=&quot;480px&quot; height=&quot;360px&quot;]</h4>
   Displays video only interface. If iOS is detected it shows HLS instead.</li>
   <li><h4>[videowhisper_hls channel=&quot;Channel Name&quot; width=&quot;480px&quot; height=&quot;360px&quot;]</h4>
@@ -3106,7 +3166,9 @@ align="absmiddle" border="0">Start Broadcasting</a>
 				'userChannels' => '1',
 				'anyChannels' => '0',
 				'custom_post' => 'channel',
+
 				'postTemplate' => 'page.php',
+				'channelUrl' => 'post',
 
 				'disablePage' => '0',
 				'disablePageC' => '0',
@@ -3115,6 +3177,7 @@ align="absmiddle" border="0">Start Broadcasting</a>
 				'perPage' =>'6',
 
 				'postName' => 'custom',
+
 
 				'rtmp_server' => 'rtmp://localhost/videowhisper',
 				'rtmp_amf' => 'AMF3',
@@ -3183,7 +3246,7 @@ align="absmiddle" border="0">Start Broadcasting</a>
 				'micRateMobile' => '22',
 				//mobile:end
 
-			    'broadcastTime' => '600',
+				'broadcastTime' => '600',
 				'watchTime' => '3000',
 				'pBroadcastTime' => '6000',
 				'pWatchTime' => '30000',
@@ -3585,7 +3648,7 @@ Service takes no responsibility and assumes no liability for any Content posted,
 <br>Do a speed test from broadcaster computer to a location near your streaming (rtmp) server using a tool like <a href="http://www.speedtest.net" target="_blank">SpeedTest.net</a> . Drag and zoom to a server in contry/state where you host (Ex: central US if you host with VideoWhisper) and select it. The upload speed is the maximum data you'll be able to broadcast.
 
 <?php
-/*
+				/*
 
 <h4>Video Codec</h4>
 <select name="videoCodecMobile" id="videoCodecMobile">
@@ -3667,7 +3730,7 @@ Service takes no responsibility and assumes no liability for any Content posted,
 <br>This works if file doesn't already exist. You can also create the file for faster serving.
 <?php
 
-			break;
+				break;
 
 			case 'general':
 
@@ -3696,6 +3759,13 @@ Service takes no responsibility and assumes no liability for any Content posted,
   <option value="user_nicename" <?php echo $options['userName']=='user_nicename'?"selected":""?>>Nicename</option>
 </select>
 
+<h4>Channel Page Layout URL</h4>
+<select name="channelUrl" id="channelUrl">
+  <option value="post" <?php echo $options['channelUrl']=='post'?"selected":""?>>Post (Theme)</option>
+  <option value="full" <?php echo $options['channelUrl']=='full'?"selected":""?>>Full Page</option>
+</select>
+<br>URL where to show channels from listings (implemented in listings).
+
 <h4>Post Channels</h4>
 <select name="postChannels" id="postChannels">
   <option value="1" <?php echo $options['postChannels']?"selected":""?>>Yes</option>
@@ -3712,7 +3782,6 @@ Service takes no responsibility and assumes no liability for any Content posted,
 <h4>Post Template Filename</h4>
 <input name="postTemplate" type="text" id="postTemplate" size="20" maxlength="64" value="<?php echo $options['postTemplate']?>"/>
 <br>Template file located in current theme folder, that should be used to render channel post page. Ex: page.php, single.php
-
 
 <h4>Maximum Broadcating Channels</h4>
 <input name="maxChannels" type="text" id="maxChannels" size="2" maxlength="4" value="<?php echo $options['maxChannels']?>"/>
@@ -3951,6 +4020,8 @@ published for recording).</p>
 <h4>Uploads Path</h4>
 <p>Path where logs and snapshots will be uploaded. Make sure you use a location outside plugin folder to avoid losing logs on updates and plugin uninstallation.</p>
 <input name="uploadsPath" type="text" id="uploadsPath" size="80" maxlength="256" value="<?php echo $options['uploadsPath']?>"/>
+<br>wp_upload_dir()['basedir'] : <?php echo wp_upload_dir()['basedir'] ?>
+<br>$_SERVER['DOCUMENT_ROOT'] : <?php echo $_SERVER['DOCUMENT_ROOT'] ?>
 
 <h4>Show Channel Watch when Offline</h4>
 <p>Display channel watch interface even if channel is not detected as broadcasting.</p>
@@ -4392,7 +4463,10 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 
 		function cleanSessions($broadcaster=0)
 		{
+
 			$options = get_option('VWliveStreamingOptions');
+
+			if (!VWliveStreaming::timeTo('cleanSessions'.$broadcaster, 25, $options)) return;
 
 			$ztime = time();
 			global $wpdb;
@@ -4400,22 +4474,10 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 			if ($broadcaster) $table_name = $wpdb->prefix . "vw_sessions";
 			else $table_name = $wpdb->prefix . "vw_lwsessions";
 
-			//do not clean more often than 25s (mysql table invalidate)
-			$lastClean = 0; $cleanNow = false;
-			$lastCleanFile = $options['uploadsPath'] . 'lastclean' . $broadcaster . '.txt';
-
-			if (file_exists($lastCleanFile)) $lastClean = file_get_contents($lastCleanFile);
-			if (!$lastClean) $cleanNow = true;
-			else if ($ztime - $lastClean > 25) $cleanNow = true;
-
-				if ($cleanNow)
-				{
-					if (!$options['onlineExpiration' . $broadcaster]) $options['onlineExpiration' . $broadcaster] = 310;
-					$exptime=$ztime-$options['onlineExpiration' . $broadcaster];
-					$sql="DELETE FROM `$table_name` WHERE edate < $exptime";
-					$wpdb->query($sql);
-					file_put_contents($lastCleanFile, $ztime);
-				}
+			if (!$options['onlineExpiration' . $broadcaster]) $options['onlineExpiration' . $broadcaster] = 310;
+			$exptime=$ztime-$options['onlineExpiration' . $broadcaster];
+			$sql="DELETE FROM `$table_name` WHERE edate < $exptime";
+			$wpdb->query($sql);
 
 		}
 
@@ -4534,6 +4596,65 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 			return 0;
 		}
 */
+
+		//! Online user functions
+
+
+		function updateViewers($postID, $room, $options)
+		{
+			if (!VWliveStreaming::timeTo($room . '/updateViewers', 30, $options)) return;
+
+			if (!$options) $options = get_option('VWliveStreamingOptions');
+
+			global $wpdb;
+			$table_name = $wpdb->prefix . "vw_vmls_sessions";
+
+			VWliveStreaming::cleanSessions(1);
+
+			//update viewers
+
+			$table_name2 = $wpdb->prefix . "vw_lwsessions";
+			$viewers =  $wpdb->get_results("SELECT count(id) as no FROM `$table_name2` where status='1' and type='1' and room='" . $r . "'");
+
+			update_post_meta($postID, 'viewers', $viewers);
+			$maxViewers = get_post_meta($postID, 'maxViewers', true);
+			if ($viewers >= $maxViewers)
+			{
+				update_post_meta($postID, 'maxViewers', $viewers);
+				update_post_meta($postID, 'maxDate', $ztime);
+			}
+
+
+		}
+
+		//if $action was already done in last $expire, return false
+		function timeTo($action, $expire = 60, $options='')
+		{
+			if (!$options) $options = get_option('VWliveStreamingOptions');
+
+			$cleanNow = false;
+
+
+			$ztime = time();
+
+			$lastClean = 0;
+			$lastCleanFile = $options['uploadsPath'] . '/' . $action . '.txt';
+
+			if (!file_exists($dir = dirname($lastCleanFile))) mkdir($dir);
+			elseif (file_exists($lastCleanFile)) $lastClean = file_get_contents($lastCleanFile);
+
+			if (!$lastClean) $cleanNow = true;
+			else if ($ztime - $lastClean > $expire) $cleanNow = true;
+
+				if ($cleanNow)
+					file_put_contents($lastCleanFile, $ztime);
+
+
+				return $cleanNow;
+
+		}
+
+
 
 		//! Ajax App Calls
 		function vwls_calls()
@@ -5399,7 +5520,7 @@ myCRED <a href="admin.php?page=myCRED_page_addons">Sell Content addon</a> should
 				sanV($session);
 				if (!$room) exit;
 
-				$message = strip_tags($messae,'<p><a><img><font><b><i><u>');
+				$message = strip_tags($message,'<p><a><img><font><b><i><u>');
 
 				//generate same private room folder for both users
 				if ($private)
@@ -5638,16 +5759,7 @@ lt=last session time received from this script in (milliseconds)
 									update_post_meta($postID, 'edate', $ztime);
 									update_post_meta($postID, 'btime', $channel->btime);
 
-									$table_name2 = $wpdb->prefix . "vw_sessions";
-									$viewers =  $wpdb->get_results("SELECT count(id) as no FROM `$table_name2` where status='1' and type='1' and room='" . $r . "'");
-
-									update_post_meta($postID, 'viewers', $viewers);
-									$maxViewers = get_post_meta($postID, 'maxViewers', true);
-									if ($viewers >= $maxViewers)
-									{
-										update_post_meta($postID, 'maxViewers', $viewers);
-										update_post_meta($postID, 'maxDate', $ztime);
-									}
+									VWliveStreaming::updateViewers($postID, $r, $options);
 								}
 							}
 
@@ -6014,16 +6126,8 @@ cam, mic = 0 none, 1 disabled, 2 enabled
 							update_post_meta($postID, 'edate', $ztime);
 							update_post_meta($postID, 'btime', $channel->btime);
 
-							$table_name2 = $wpdb->prefix . "vw_lwsessions";
-							$viewers =  $wpdb->get_results("SELECT count(id) as no FROM `$table_name2` where status='1' and type='1' and room='" . $r . "'");
+							VWliveStreaming::updateViewers($postID, $r, $options);
 
-							update_post_meta($postID, 'viewers', $viewers);
-							$maxViewers = get_post_meta($postID, 'maxViewers', true);
-							if ($viewers >= $maxViewers)
-							{
-								update_post_meta($postID, 'maxViewers', $viewers);
-								update_post_meta($postID, 'maxDate', $ztime);
-							}
 						}
 
 					}
